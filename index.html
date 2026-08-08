@@ -312,8 +312,8 @@
                     <input type="password" id="loginPassword" placeholder="请输入密码" required>
                 </div>
                 <div class="form-group-login">
-                    <label for="githubToken">GitHub Token（仅管理员填写）</label>
-                    <input type="password" id="githubToken" placeholder="粘贴你的 GitHub Personal Access Token">
+                    <label for="githubToken">GitHub Token（已预置，无需填写）</label>
+                    <input type="password" id="githubToken" placeholder="如需更换可在此输入">
                 </div>
                 <div class="login-error" id="loginError" style="display:none;">账号或密码错误</div>
                 <button type="submit" class="btn btn-primary btn-full">登录</button>
@@ -453,11 +453,12 @@
     </div>
 
     <script>
-        // ==================== 配置（已替换为你的信息） ====================
+        // ==================== 配置 ====================
         const GITHUB_OWNER = 'CommandBlocktt';
         const GITHUB_REPO = 'ticketing_system';
         const MAPS_FILE_PATH = 'maps.json';
         const IMGBB_API_KEY = '2d15022b586dac2e3cf34b4aa9170e31'; // 可自行更换
+        const HARDCODED_GITHUB_TOKEN = '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'; // 预置 Token
 
         const ADMIN_USERNAME = 'tntdada123';
         const ADMIN_PASSWORD = 'uid650949970';
@@ -478,10 +479,14 @@
             e.preventDefault();
             const u = document.getElementById('loginUsername').value.trim();
             const p = document.getElementById('loginPassword').value.trim();
-            const token = document.getElementById('githubToken').value.trim();
+            let token = document.getElementById('githubToken').value.trim();
             if (u === ADMIN_USERNAME && p === ADMIN_PASSWORD) {
+                // 如果管理员没有手动输入 Token，则使用硬编码 Token
+                if (!token) {
+                    token = HARDCODED_GITHUB_TOKEN;
+                }
                 sessionStorage.setItem('dudu_admin', 'true');
-                if (token) sessionStorage.setItem('github_token', token);
+                sessionStorage.setItem('github_token', token);
                 closeLoginModal();
                 renderNavbar();
             } else {
@@ -494,7 +499,8 @@
             renderNavbar();
         }
         function getGitHubToken() {
-            return sessionStorage.getItem('github_token');
+            // 优先使用手动输入的 Token，否则使用硬编码 Token
+            return sessionStorage.getItem('github_token') || HARDCODED_GITHUB_TOKEN;
         }
 
         // ---------- 从 GitHub 读取 maps.json（绕过缓存） ----------
@@ -542,7 +548,7 @@
         async function updateMapsJSON(version, imageUrl) {
             const token = getGitHubToken();
             if (!token) {
-                alert('❌ 缺少 GitHub Token，请在登录时输入 Token');
+                alert('❌ 缺少 GitHub Token');
                 return false;
             }
             const apiUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${MAPS_FILE_PATH}`;
@@ -625,7 +631,7 @@
             showMapImage(tab, maps[tab]);
         }
 
-        // ---------- 上传图片（直接上传原图，不做转换） ----------
+        // ---------- 上传图片（直接上传原图） ----------
         async function handleUpload(event, version) {
             const file = event.target.files[0];
             if (!file) return;
