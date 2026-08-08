@@ -468,6 +468,7 @@
         </div>
     </div>
 
+    <!-- 线网图模态框（修复删除按钮可见性） -->
     <div class="modal-overlay" id="mapModal">
         <div class="modal-content modal-content-wide">
             <button class="modal-close" onclick="closeMapModal()">&times;</button>
@@ -485,10 +486,13 @@
                     <button class="zoom-btn" onclick="zoomMap('dudu', -0.2)">-</button>
                     <button class="zoom-btn zoom-reset" onclick="resetZoom('dudu')">重置</button>
                 </div>
+                <!-- 上传/删除按钮区域：分离显示控制 -->
                 <div class="upload-btn-wrapper" id="uploadWrapperDudu" style="display: none;">
-                    <button class="btn btn-sm" onclick="document.getElementById('mapFileInputDudu').click()">📤 上传图片</button>
-                    <button class="delete-map-btn" id="deleteMapBtnDudu" style="display: none;" onclick="deleteMap('dudu')">🗑️ 删除图片</button>
+                    <button class="btn btn-sm" id="uploadBtnDudu" onclick="document.getElementById('mapFileInputDudu').click()">📤 上传图片</button>
                     <input type="file" id="mapFileInputDudu" accept="image/*" onchange="handleMapFileSelect(event, 'dudu')">
+                </div>
+                <div class="upload-btn-wrapper" id="deleteWrapperDudu" style="display: none;">
+                    <button class="delete-map-btn" id="deleteMapBtnDudu" onclick="deleteMap('dudu')">🗑️ 删除图片</button>
                 </div>
                 <div class="save-cancel-wrapper" id="saveCancelDudu" style="display: none;">
                     <button class="btn btn-sm btn-success" onclick="saveMapImage('dudu')">💾 保存</button>
@@ -508,9 +512,11 @@
                     <button class="zoom-btn zoom-reset" onclick="resetZoom('jianjiao')">重置</button>
                 </div>
                 <div class="upload-btn-wrapper" id="uploadWrapperJianjiao" style="display: none;">
-                    <button class="btn btn-sm" onclick="document.getElementById('mapFileInputJianjiao').click()">📤 上传图片</button>
-                    <button class="delete-map-btn" id="deleteMapBtnJianjiao" style="display: none;" onclick="deleteMap('jianjiao')">🗑️ 删除图片</button>
+                    <button class="btn btn-sm" id="uploadBtnJianjiao" onclick="document.getElementById('mapFileInputJianjiao').click()">📤 上传图片</button>
                     <input type="file" id="mapFileInputJianjiao" accept="image/*" onchange="handleMapFileSelect(event, 'jianjiao')">
+                </div>
+                <div class="upload-btn-wrapper" id="deleteWrapperJianjiao" style="display: none;">
+                    <button class="delete-map-btn" id="deleteMapBtnJianjiao" onclick="deleteMap('jianjiao')">🗑️ 删除图片</button>
                 </div>
                 <div class="save-cancel-wrapper" id="saveCancelJianjiao" style="display: none;">
                     <button class="btn btn-sm btn-success" onclick="saveMapImage('jianjiao')">💾 保存</button>
@@ -524,16 +530,15 @@
     </div>
 
     <script>
-        // ==================== 请替换为你的 imgbb API Key ====================
+        // ==================== 配置区域 ====================
         const IMGBB_API_KEY = '2d15022b586dac2e3cf34b4aa9170e31';
 
-        // ==================== 管理员账号与密码（加密版） ====================
+        // 管理员账号与密码（支持 SHA-256 哈希，留空则使用明文）
         const ADMIN_USERNAME = 'tntdada123';
-        // ★ 密码支持 SHA-256 哈希存储。生成哈希的方法见注释。留空则使用明文验证。
-        const ADMIN_PASSWORD_HASH = ''; // 填入 SHA-256 哈希值（64位十六进制）
-        const ADMIN_PASSWORD_PLAIN = 'uid650949970'; // 明文密码（哈希为空时使用）
+        const ADMIN_PASSWORD_HASH = ''; 
+        const ADMIN_PASSWORD_PLAIN = 'uid650949970';
 
-        // 计算 SHA-256
+        // ---------- 加密工具 ----------
         async function sha256(message) {
             const msgBuffer = new TextEncoder().encode(message);
             try {
@@ -546,13 +551,12 @@
             }
         }
 
-        // 检查登录状态
+        // ---------- 登录状态管理 ----------
         function checkLoginStatus() {
             const loginData = JSON.parse(sessionStorage.getItem('dudu_admin_login'));
             return loginData && loginData.loggedIn && loginData.username === ADMIN_USERNAME;
         }
 
-        // 渲染导航栏
         function renderNavbar() {
             const navActions = document.getElementById('navActions');
             if (checkLoginStatus()) {
@@ -566,7 +570,7 @@
             } else {
                 navActions.innerHTML = `<button class="btn-login" onclick="openLoginModal()">🔐 管理员登录</button>`;
             }
-            // 如果地图模态框打开，只更新按钮可见性，不重新加载图片
+            // 如果地图模态框打开，更新按钮可见性（不重新加载图片）
             if (document.getElementById('mapModal').classList.contains('active')) {
                 updateMapButtonsVisibility();
             }
@@ -633,7 +637,7 @@
             toast._timeout = setTimeout(() => { toast.style.opacity = '0'; }, 2000);
         }
 
-        // ---------- IndexedDB 存储图片 URL ----------
+        // ---------- IndexedDB 图片存储 ----------
         const DB_NAME = 'DuduMapDB';
         const DB_VERSION = 2;
         const STORE_NAME = 'maps';
@@ -702,7 +706,7 @@
             }
         }
 
-        // ---------- 线网图交互与权限控制（所有人可查看，仅管理员可管理） ----------
+        // ---------- 线网图交互（所有人可查看，仅管理员可管理）----------
         let currentMapTab = 'dudu';
         const mapState = {
             dudu: { scale: 1, translateX: 0, translateY: 0, dragging: false, startX: 0, startY: 0, prevX: 0, prevY: 0, tempImageData: null, pinchStartDistance: 0, pinchStartScale: 1 },
@@ -727,13 +731,12 @@
 
         function getVersionSuffix(version) { return version === 'dudu' ? 'Dudu' : 'Jianjiao'; }
 
-        // 加载图片（所有人可查看，管理员预览时仅管理员可见预览图）
         async function loadMapImage(version, previewSrc = null) {
             const suffix = getVersionSuffix(version);
             const container = document.getElementById(`mapContainer${suffix}`);
-            const deleteBtn = document.getElementById(`deleteMapBtn${suffix}`);
             const zoomControls = document.getElementById(`zoomControls${suffix}`);
             const uploadWrapper = document.getElementById(`uploadWrapper${suffix}`);
+            const deleteWrapper = document.getElementById(`deleteWrapper${suffix}`);
             const saveCancel = document.getElementById(`saveCancel${suffix}`);
 
             // 重置交互状态
@@ -744,11 +747,10 @@
             const isAdmin = checkLoginStatus();
             let imageSrc = null;
 
-            // 预览图仅限管理员，普通用户忽略预览
+            // 预览图仅限管理员，普通用户忽略
             if (previewSrc && isAdmin) {
                 imageSrc = previewSrc;
             } else {
-                // 所有人都尝试从数据库加载图片
                 try {
                     imageSrc = await getImageFromDB(version);
                 } catch (err) {
@@ -757,7 +759,7 @@
                 }
             }
 
-            // 渲染地图或占位符
+            // 渲染图片或占位符
             if (imageSrc) {
                 container.innerHTML = `
                     <div class="map-image-wrapper" id="mapWrapper${suffix}">
@@ -768,12 +770,13 @@
                 `;
                 zoomControls.style.display = 'flex';
 
-                // 按钮权限：管理员操作，普通用户无操作按钮
-                deleteBtn.style.display = (isAdmin && !previewSrc) ? 'inline-flex' : 'none';
-                uploadWrapper.style.display = 'none'; // 已有图片时不显示上传按钮
+                // 按钮权限
+                uploadWrapper.style.display = 'none'; // 有图片时隐藏上传按钮
+                // 删除按钮：管理员且非预览状态
+                deleteWrapper.style.display = (isAdmin && !previewSrc) ? 'flex' : 'none';
                 saveCancel.style.display = (isAdmin && previewSrc) ? 'flex' : 'none';
 
-                // 绑定拖拽事件
+                // 绑定拖拽
                 const wrapper = document.getElementById(`mapWrapper${suffix}`);
                 if (wrapper) {
                     wrapper.addEventListener('mousedown', (e) => startDrag(e, version));
@@ -783,14 +786,14 @@
             } else {
                 container.innerHTML = '<span class="map-placeholder">暂无图片，请管理员上传</span>';
                 zoomControls.style.display = 'none';
-                deleteBtn.style.display = 'none';
                 saveCancel.style.display = 'none';
-                // 管理员且无图片时显示上传按钮
+                deleteWrapper.style.display = 'none';
+                // 上传按钮：管理员且无图片时显示
                 uploadWrapper.style.display = (isAdmin && !mapState[version].tempImageData) ? 'flex' : 'none';
             }
         }
 
-        // 仅更新按钮可见性（用于登录/登出时，不重新加载图片）
+        // 仅更新按钮显示（不重新加载图片）
         function updateMapButtonsVisibility() {
             const version = currentMapTab;
             const suffix = getVersionSuffix(version);
@@ -800,23 +803,21 @@
             const hasTemp = !!mapState[version].tempImageData;
 
             const uploadWrapper = document.getElementById(`uploadWrapper${suffix}`);
-            const deleteBtn = document.getElementById(`deleteMapBtn${suffix}`);
+            const deleteWrapper = document.getElementById(`deleteWrapper${suffix}`);
             const saveCancel = document.getElementById(`saveCancel${suffix}`);
 
             if (uploadWrapper) {
-                // 管理员且无图片且无临时预览时显示上传按钮
                 uploadWrapper.style.display = (isAdmin && !hasImage && !hasTemp) ? 'flex' : 'none';
             }
-            if (deleteBtn) {
-                // 管理员且有图片且不是预览状态（没有临时预览数据）时显示删除按钮
-                deleteBtn.style.display = (isAdmin && hasImage && !hasTemp) ? 'inline-flex' : 'none';
+            if (deleteWrapper) {
+                deleteWrapper.style.display = (isAdmin && hasImage && !hasTemp) ? 'flex' : 'none';
             }
             if (saveCancel) {
-                // 管理员且有临时预览数据时显示保存/取消按钮
                 saveCancel.style.display = (isAdmin && hasTemp) ? 'flex' : 'none';
             }
         }
 
+        // 以下为地图拖拽/缩放函数，未改动
         function applyTransform(version) {
             const suffix = getVersionSuffix(version);
             const inner = document.getElementById(`mapInner${suffix}`);
@@ -926,7 +927,7 @@
             document.removeEventListener('touchend', stopDrag);
         }
 
-        // 管理员选择文件（仅管理员可调用，按钮已做隐藏）
+        // 上传/删除/保存/取消逻辑
         function handleMapFileSelect(event, version) {
             const file = event.target.files[0];
             if (!file) return;
