@@ -523,6 +523,9 @@
     </div>
 
     <script>
+        // ==================== 请替换为你的 imgbb API Key ====================
+        const IMGBB_API_KEY = '你的API_KEY'; // 在 https://api.imgbb.com/ 注册后获取
+
         const ADMIN_CREDENTIALS = { username: 'tntdada123', password: 'uid650949970' };
 
         function checkLoginStatus() {
@@ -590,9 +593,9 @@
             }, 2000);
         }
 
-        // IndexedDB 封装
+        // ---------- IndexedDB 存储图片 URL ----------
         const DB_NAME = 'DuduMapDB';
-        const DB_VERSION = 1;
+        const DB_VERSION = 2;
         const STORE_NAME = 'maps';
 
         function openDB() {
@@ -642,7 +645,24 @@
             });
         }
 
-        // 线网图交互
+        // ---------- 上传到 imgbb 并返回公开 URL ----------
+        async function uploadToImgbb(base64Data) {
+            const formData = new FormData();
+            const imageData = base64Data.split(',')[1]; // 去掉 data:image/...;base64, 前缀
+            formData.append('image', imageData);
+            const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            if (result.success) {
+                return result.data.url; // 返回可直接访问的图片链接
+            } else {
+                throw new Error('上传失败，请检查 API Key 或网络连接');
+            }
+        }
+
+        // ---------- 线网图交互 ----------
         let currentMapTab = 'dudu';
         const mapState = {
             dudu: { scale: 1, translateX: 0, translateY: 0, dragging: false, startX: 0, startY: 0, prevX: 0, prevY: 0, tempImageData: null, pinchStartDistance: 0, pinchStartScale: 1 },
@@ -842,7 +862,6 @@
             if (!mapState.jianjiao.tempImageData) await loadMapImage('jianjiao');
         }
 
-        // 上传原图，不做任何压缩处理
         function handleMapFileSelect(event, version) {
             const file = event.target.files[0];
             if (!file) return;
@@ -852,24 +871,26 @@
             }
             const reader = new FileReader();
             reader.onload = async function(e) {
-                mapState[version].tempImageData = e.target.result; // 完整的原始图片 base64
+                mapState[version].tempImageData = e.target.result; // 临时 base64
                 await loadMapImage(version, e.target.result);
             };
             reader.onerror = function() {
                 showToast('读取图片失败', 'error');
             };
-            reader.readAsDataURL(file); // 以 data URL 格式读取原文件，不压缩
+            reader.readAsDataURL(file);
             event.target.value = '';
         }
 
         async function saveMapImage(version) {
-            const data = mapState[version].tempImageData;
-            if (!data) {
+            const base64 = mapState[version].tempImageData;
+            if (!base64) {
                 showToast('没有可保存的图片', 'error');
                 return;
             }
             try {
-                await saveImageToDB(version, data); // 原图存入 IndexedDB
+                showToast('正在上传...', 'success');
+                const imageUrl = await uploadToImgbb(base64);
+                await saveImageToDB(version, imageUrl); // 存入 URL，不是 base64
                 mapState[version].tempImageData = null;
                 showToast('保存成功', 'success');
                 await loadMapImage(version);
