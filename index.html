@@ -298,7 +298,6 @@
         <div class="nav-actions" id="navActions"></div>
     </nav>
 
-    <!-- 管理员登录（含 GitHub Token） -->
     <div class="modal-overlay" id="loginModal">
         <div class="modal-content">
             <button class="modal-close" onclick="closeLoginModal()">&times;</button>
@@ -454,21 +453,14 @@
     </div>
 
     <script>
-        // ==================== 配置（修改为你自己的信息） ====================
-        const GITHUB_OWNER = 'CommandBlocktt';   // 例如 'tntdada123'
-        const GITHUB_REPO = 'ticketing_system';           // 你的仓库名
-        const MAPS_FILE_PATH = 'maps.json';        // 文件路径
-        const IMGBB_API_KEY = '2d15022b586dac2e3cf34b4aa9170e31'; // 你的imgbb key
+        // ==================== 配置（已替换为你的信息） ====================
+        const GITHUB_OWNER = 'CommandBlocktt';
+        const GITHUB_REPO = 'ticketing_system';
+        const MAPS_FILE_PATH = 'maps.json';
+        const IMGBB_API_KEY = '2d15022b586dac2e3cf34b4aa9170e31'; // 可自行更换
 
         const ADMIN_USERNAME = 'tntdada123';
         const ADMIN_PASSWORD = 'uid650949970';
-
-        // ---------- 密码加密（可选） ----------
-        async function sha256(msg) {
-            const buf = new TextEncoder().encode(msg);
-            const hash = await crypto.subtle.digest('SHA-256', buf);
-            return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
-        }
 
         // ---------- 管理员登录 ----------
         function checkLoginStatus() {
@@ -482,20 +474,18 @@
         }
         function openLoginModal() { document.getElementById('loginModal').classList.add('active'); }
         function closeLoginModal() { document.getElementById('loginModal').classList.remove('active'); }
-        async function handleLogin(e) {
+        function handleLogin(e) {
             e.preventDefault();
             const u = document.getElementById('loginUsername').value.trim();
             const p = document.getElementById('loginPassword').value.trim();
             const token = document.getElementById('githubToken').value.trim();
-            const err = document.getElementById('loginError');
-            // 支持明文密码或哈希（如需哈希自行填写 ADMIN_PASSWORD_HASH 变量）
             if (u === ADMIN_USERNAME && p === ADMIN_PASSWORD) {
                 sessionStorage.setItem('dudu_admin', 'true');
                 if (token) sessionStorage.setItem('github_token', token);
                 closeLoginModal();
                 renderNavbar();
             } else {
-                err.style.display = 'block';
+                document.getElementById('loginError').style.display = 'block';
             }
         }
         function logout() {
@@ -507,39 +497,71 @@
             return sessionStorage.getItem('github_token');
         }
 
-        // ---------- 从 GitHub 读取 maps.json ----------
+        // ---------- 从 GitHub 读取 maps.json（绕过缓存） ----------
         async function fetchMapsJSON() {
-            const rawUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/${MAPS_FILE_PATH}`;
+            const rawUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/${MAPS_FILE_PATH}?t=${Date.now()}`;
+            console.log('🔍 读取 raw URL:', rawUrl);
             try {
-                const res = await fetch(rawUrl);
-                if (!res.ok) return { dudu: '', jianjiao: '' };
-                return await res.json();
+                const res = await fetch(rawUrl, { cache: 'no-cache' });
+                if (res.ok) {
+                    const data = await res.json();
+                    console.log('✅ raw 读取成功:', data);
+                    return data;
+                }
+                console.warn('⚠️ raw 读取失败，状态码:', res.status);
             } catch (e) {
-                return { dudu: '', jianjiao: '' };
+                console.warn('⚠️ raw 读取网络错误:', e);
             }
+
+            const token = getGitHubToken();
+            if (token) {
+                const apiUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${MAPS_FILE_PATH}`;
+                console.log('🔍 尝试 API 读取:', apiUrl);
+                try {
+                    const res = await fetch(apiUrl, {
+                        headers: { Authorization: `token ${token}` },
+                        cache: 'no-cache'
+                    });
+                    if (res.ok) {
+                        const fileData = await res.json();
+                        const content = JSON.parse(atob(fileData.content));
+                        console.log('✅ API 读取成功:', content);
+                        return content;
+                    }
+                    console.warn('⚠️ API 读取失败，状态码:', res.status);
+                } catch (e) {
+                    console.warn('⚠️ API 读取网络错误:', e);
+                }
+            }
+
+            console.error('❌ 所有读取方式均失败，返回空数据');
+            return { dudu: '', jianjiao: '' };
         }
 
-        // ---------- 更新 GitHub 上的 maps.json（带详细错误提示） ----------
+        // ---------- 更新 GitHub 上的 maps.json ----------
         async function updateMapsJSON(version, imageUrl) {
             const token = getGitHubToken();
             if (!token) {
-                alert('❌ 缺少 GitHub Token，请退出后重新登录并填写 Token');
-                return;
+                alert('❌ 缺少 GitHub Token，请在登录时输入 Token');
+                return false;
             }
             const apiUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${MAPS_FILE_PATH}`;
+            console.log('📤 更新目标 API URL:', apiUrl);
             try {
                 const getResp = await fetch(apiUrl, {
                     headers: { Authorization: `token ${token}` }
                 });
                 if (!getResp.ok) {
                     const errData = await getResp.json().catch(() => ({}));
-                    alert(`❌ 读取 GitHub 文件失败\n状态码：${getResp.status}\n信息：${errData.message || '未知错误'}\n请检查：\n1. Token 是否有 repo 权限\n2. 仓库名是否正确\n3. maps.json 是否存在于仓库根目录`);
-                    return;
+                    console.error('❌ 读取文件失败，状态码:', getResp.status, errData);
+                    alert(`❌ 读取 GitHub 文件失败\n状态码：${getResp.status}\n信息：${errData.message || '未知错误'}`);
+                    return false;
                 }
                 const fileData = await getResp.json();
                 const content = JSON.parse(atob(fileData.content));
                 content[version] = imageUrl;
                 const newContent = btoa(JSON.stringify(content, null, 2));
+
                 const putResp = await fetch(apiUrl, {
                     method: 'PUT',
                     headers: {
@@ -554,11 +576,16 @@
                 });
                 if (!putResp.ok) {
                     const errData = await putResp.json().catch(() => ({}));
+                    console.error('❌ 更新文件失败，状态码:', putResp.status, errData);
                     alert(`❌ 更新 GitHub 文件失败\n状态码：${putResp.status}\n信息：${errData.message || '未知错误'}`);
-                    return;
+                    return false;
                 }
+                console.log('✅ GitHub 文件已更新');
+                return true;
             } catch (e) {
+                console.error('❌ 网络错误:', e);
                 alert('❌ 网络错误或无法连接 GitHub：' + e.message);
+                return false;
             }
         }
 
@@ -598,23 +625,35 @@
             showMapImage(tab, maps[tab]);
         }
 
-        // ---------- 上传图片 ----------
+        // ---------- 上传图片（直接上传原图，不做转换） ----------
         async function handleUpload(event, version) {
             const file = event.target.files[0];
             if (!file) return;
             const suffix = version === 'dudu' ? 'Dudu' : 'Jianjiao';
             const uploadText = document.getElementById(`uploadText${suffix}`);
             if (uploadText) uploadText.style.display = 'inline';
-            const formData = new FormData();
-            formData.append('image', file);
             try {
+                const formData = new FormData();
+                formData.append('image', file);
                 const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: 'POST', body: formData });
                 const data = await res.json();
                 if (!data.success) throw new Error('上传图片到 imgbb 失败');
                 const imageUrl = data.data.url;
-                await updateMapsJSON(version, imageUrl);
-                showMapImage(version, imageUrl);
-                alert('✅ 上传成功！其他用户刷新页面即可看到。');
+                console.log('🖼️ 图片上传成功:', imageUrl);
+
+                const success = await updateMapsJSON(version, imageUrl);
+                if (success) {
+                    showMapImage(version, imageUrl);
+                    setTimeout(async () => {
+                        const maps = await fetchMapsJSON();
+                        if (maps[version] === imageUrl) {
+                            console.log('✅ 二次验证成功，图片已持久化');
+                        } else {
+                            alert('⚠️ 文件可能未保存成功，请检查 GitHub 仓库的 maps.json 内容');
+                        }
+                    }, 5000);
+                    alert('✅ 上传成功！其他用户刷新页面即可看到。');
+                }
             } catch (e) {
                 alert('操作失败：' + e.message);
             } finally {
@@ -720,7 +759,6 @@
             if (n <= 100) return '第五区间';
             return '第六区间';
         }
-
         function calculateStandard() {
             const n = parseInt(document.getElementById('stations').value);
             const hasSea = document.getElementById('hasSea').checked;
@@ -747,7 +785,6 @@
             document.getElementById('stations').value = n;
             calculateStandard();
         }
-
         function calculateSupplement() {
             const paid = parseFloat(document.getElementById('paidAmount').value);
             const actual = parseInt(document.getElementById('actualStations').value);
