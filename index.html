@@ -6,25 +6,12 @@
     <title>嘟嘟市城市轨道交通票价查询系统</title>
     <style>
         :root {
-            --primary: #1a6fb5;
-            --primary-light: #e8f4fd;
-            --primary-dark: #14578c;
-            --accent: #f0a030;
-            --accent-light: #fff8ed;
-            --danger: #c0392b;
-            --danger-light: #fef0ef;
-            --success: #27ae60;
-            --success-light: #edfaf3;
-            --bg: #f5f6f8;
-            --card-bg: #ffffff;
-            --text: #2c3e50;
-            --text-secondary: #5a6c7d;
-            --border: #e0e5ea;
-            --shadow: 0 2px 12px rgba(0,0,0,0.06);
-            --shadow-lg: 0 8px 32px rgba(0,0,0,0.10);
-            --radius: 16px;
-            --radius-sm: 10px;
-            --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
+            --primary: #1a6fb5; --primary-light: #e8f4fd; --primary-dark: #14578c;
+            --accent: #f0a030; --accent-light: #fff8ed; --danger: #c0392b; --danger-light: #fef0ef;
+            --success: #27ae60; --success-light: #edfaf3; --bg: #f5f6f8; --card-bg: #ffffff;
+            --text: #2c3e50; --text-secondary: #5a6c7d; --border: #e0e5ea;
+            --shadow: 0 2px 12px rgba(0,0,0,0.06); --shadow-lg: 0 8px 32px rgba(0,0,0,0.10);
+            --radius: 16px; --radius-sm: 10px; --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
             --font-mono: 'SF Mono','Cascadia Code','Consolas','Monaco','Menlo',monospace;
         }
         * { margin:0; padding:0; box-sizing:border-box; }
@@ -32,8 +19,7 @@
             font-family: -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif;
             background: var(--bg); color: var(--text); line-height:1.6; min-height:100vh;
             -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
-            padding-top: 60px;
-            -webkit-overflow-scrolling: touch;
+            padding-top: 60px; -webkit-overflow-scrolling: touch;
         }
         body::before {
             content:''; position:fixed; top:-200px; right:-200px; width:600px; height:600px;
@@ -471,14 +457,13 @@
         // ==================== 配置（修改为你自己的信息） ====================
         const GITHUB_OWNER = '你的GitHub用户名';   // 例如 'tntdada123'
         const GITHUB_REPO = 'dudu-maps';           // 你的仓库名
-        const MAPS_FILE_PATH = 'maps.json';        // 存储图片 URL 的 JSON 文件路径
-        const IMGBB_API_KEY = '2d15022b586dac2e3cf34b4aa9170e31'; // 你的 imgbb key
+        const MAPS_FILE_PATH = 'maps.json';        // 文件路径
+        const IMGBB_API_KEY = '2d15022b586dac2e3cf34b4aa9170e31'; // 你的imgbb key
 
         const ADMIN_USERNAME = 'tntdada123';
-        const ADMIN_PASSWORD_HASH = '';
-        const ADMIN_PASSWORD_PLAIN = 'uid650949970';
+        const ADMIN_PASSWORD = 'uid650949970';
 
-        // ---------- 密码加密 ----------
+        // ---------- 密码加密（可选） ----------
         async function sha256(msg) {
             const buf = new TextEncoder().encode(msg);
             const hash = await crypto.subtle.digest('SHA-256', buf);
@@ -503,13 +488,8 @@
             const p = document.getElementById('loginPassword').value.trim();
             const token = document.getElementById('githubToken').value.trim();
             const err = document.getElementById('loginError');
-            let ok = false;
-            if (ADMIN_PASSWORD_HASH) {
-                if (await sha256(p) === ADMIN_PASSWORD_HASH) ok = true;
-            } else {
-                if (p === ADMIN_PASSWORD_PLAIN) ok = true;
-            }
-            if (u === ADMIN_USERNAME && ok) {
+            // 支持明文密码或哈希（如需哈希自行填写 ADMIN_PASSWORD_HASH 变量）
+            if (u === ADMIN_USERNAME && p === ADMIN_PASSWORD) {
                 sessionStorage.setItem('dudu_admin', 'true');
                 if (token) sessionStorage.setItem('github_token', token);
                 closeLoginModal();
@@ -539,33 +519,47 @@
             }
         }
 
-        // ---------- 更新 GitHub 上的 maps.json ----------
+        // ---------- 更新 GitHub 上的 maps.json（带详细错误提示） ----------
         async function updateMapsJSON(version, imageUrl) {
             const token = getGitHubToken();
             if (!token) {
-                alert('缺少 GitHub Token，请在登录时填写。');
+                alert('❌ 缺少 GitHub Token，请退出后重新登录并填写 Token');
                 return;
             }
             const apiUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${MAPS_FILE_PATH}`;
-            const getResp = await fetch(apiUrl, { headers: { Authorization: `token ${token}` } });
-            if (!getResp.ok) throw new Error('无法读取 GitHub 文件');
-            const fileData = await getResp.json();
-            const content = JSON.parse(atob(fileData.content));
-            content[version] = imageUrl;
-            const newContent = btoa(JSON.stringify(content, null, 2));
-            const putResp = await fetch(apiUrl, {
-                method: 'PUT',
-                headers: {
-                    Authorization: `token ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    message: `更新${version}线网图`,
-                    content: newContent,
-                    sha: fileData.sha
-                })
-            });
-            if (!putResp.ok) throw new Error('更新失败');
+            try {
+                const getResp = await fetch(apiUrl, {
+                    headers: { Authorization: `token ${token}` }
+                });
+                if (!getResp.ok) {
+                    const errData = await getResp.json().catch(() => ({}));
+                    alert(`❌ 读取 GitHub 文件失败\n状态码：${getResp.status}\n信息：${errData.message || '未知错误'}\n请检查：\n1. Token 是否有 repo 权限\n2. 仓库名是否正确\n3. maps.json 是否存在于仓库根目录`);
+                    return;
+                }
+                const fileData = await getResp.json();
+                const content = JSON.parse(atob(fileData.content));
+                content[version] = imageUrl;
+                const newContent = btoa(JSON.stringify(content, null, 2));
+                const putResp = await fetch(apiUrl, {
+                    method: 'PUT',
+                    headers: {
+                        Authorization: `token ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: `更新${version}线网图`,
+                        content: newContent,
+                        sha: fileData.sha
+                    })
+                });
+                if (!putResp.ok) {
+                    const errData = await putResp.json().catch(() => ({}));
+                    alert(`❌ 更新 GitHub 文件失败\n状态码：${putResp.status}\n信息：${errData.message || '未知错误'}`);
+                    return;
+                }
+            } catch (e) {
+                alert('❌ 网络错误或无法连接 GitHub：' + e.message);
+            }
         }
 
         // ---------- 显示图片 ----------
@@ -616,7 +610,7 @@
             try {
                 const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: 'POST', body: formData });
                 const data = await res.json();
-                if (!data.success) throw new Error('上传图片失败');
+                if (!data.success) throw new Error('上传图片到 imgbb 失败');
                 const imageUrl = data.data.url;
                 await updateMapsJSON(version, imageUrl);
                 showMapImage(version, imageUrl);
