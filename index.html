@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>嘟嘟市城市轨道交通票价查询系统</title>
     <style>
-        /* ========== 样式部分 100% 保持原样 ========== */
+        /* ========== 样式部分完全保留 ========== */
         :root {
             --primary: #1a6fb5;
             --primary-light: #e8f4fd;
@@ -529,20 +529,11 @@
 
         // ==================== 管理员账号与密码（加密版） ====================
         const ADMIN_USERNAME = 'tntdada123';
-        // ★ 密码现已支持 SHA-256 哈希存储。如需启用哈希验证，请在下方填入原始密码的 SHA-256 值（64位十六进制）
-        // 生成方法：在浏览器控制台中执行以下代码，复制输出的哈希值替换下面的空字符串
-        // --------------------------------------------------------------
-        // crypto.subtle.digest('SHA-256', new TextEncoder().encode('你的密码'))
-        //   .then(hash => Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join(''))
-        //   .then(console.log);
-        // --------------------------------------------------------------
-        // 若保留为空字符串，则系统自动回退为明文比对（原密码：uid650949970），不影响使用。
-        const ADMIN_PASSWORD_HASH = ''; // ← 将生成的哈希值粘贴到这里（例如 'a1b2c3...'）
+        // ★ 密码支持 SHA-256 哈希存储。生成哈希的方法见注释。留空则使用明文验证。
+        const ADMIN_PASSWORD_HASH = ''; // 填入 SHA-256 哈希值（64位十六进制）
+        const ADMIN_PASSWORD_PLAIN = 'uid650949970'; // 明文密码（哈希为空时使用）
 
-        // 明文密码（仅在哈希为空时使用，你也可将其删除以增强安全性）
-        const ADMIN_PASSWORD_PLAIN = 'uid650949970';
-
-        // 计算字符串的 SHA-256 哈希（利用 Web Crypto API）
+        // 计算 SHA-256
         async function sha256(message) {
             const msgBuffer = new TextEncoder().encode(message);
             try {
@@ -550,18 +541,18 @@
                 const hashArray = Array.from(new Uint8Array(hashBuffer));
                 return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
             } catch (e) {
-                console.warn('Web Crypto API 不可用，已回退为明文比对（安全性降低）');
+                console.warn('Web Crypto API 不可用，回退明文比对');
                 return null;
             }
         }
 
-        // 验证管理员身份
+        // 检查登录状态
         function checkLoginStatus() {
             const loginData = JSON.parse(sessionStorage.getItem('dudu_admin_login'));
             return loginData && loginData.loggedIn && loginData.username === ADMIN_USERNAME;
         }
 
-        // 渲染导航栏（保持原逻辑）
+        // 渲染导航栏
         function renderNavbar() {
             const navActions = document.getElementById('navActions');
             if (checkLoginStatus()) {
@@ -575,7 +566,10 @@
             } else {
                 navActions.innerHTML = `<button class="btn-login" onclick="openLoginModal()">🔐 管理员登录</button>`;
             }
-            updateMapUploadVisibility();
+            // 如果地图模态框打开，只更新按钮可见性，不重新加载图片
+            if (document.getElementById('mapModal').classList.contains('active')) {
+                updateMapButtonsVisibility();
+            }
         }
 
         function openLoginModal() {
@@ -594,7 +588,6 @@
             const password = document.getElementById('loginPassword').value.trim();
             const errorDiv = document.getElementById('loginError');
 
-            // 用户名检查
             if (username !== ADMIN_USERNAME) {
                 errorDiv.style.display = 'block';
                 document.getElementById('loginPassword').value = '';
@@ -602,19 +595,14 @@
             }
 
             let isPasswordCorrect = false;
-
             if (ADMIN_PASSWORD_HASH) {
-                // 使用哈希验证
                 const inputHash = await sha256(password);
                 if (inputHash && inputHash === ADMIN_PASSWORD_HASH) {
                     isPasswordCorrect = true;
                 }
             } else {
-                // 回退为明文验证
                 if (password === ADMIN_PASSWORD_PLAIN) {
                     isPasswordCorrect = true;
-                } else {
-                    console.warn('未设置哈希值，当前使用明文密码。建议设置 ADMIN_PASSWORD_HASH 以加强安全。');
                 }
             }
 
@@ -642,9 +630,7 @@
             toast.className = 'map-toast ' + type;
             toast.style.opacity = '1';
             clearTimeout(toast._timeout);
-            toast._timeout = setTimeout(() => {
-                toast.style.opacity = '0';
-            }, 2000);
+            toast._timeout = setTimeout(() => { toast.style.opacity = '0'; }, 2000);
         }
 
         // ---------- IndexedDB 存储图片 URL ----------
@@ -716,7 +702,7 @@
             }
         }
 
-        // ---------- 线网图交互 ----------
+        // ---------- 线网图交互与权限控制（所有人可查看，仅管理员可管理） ----------
         let currentMapTab = 'dudu';
         const mapState = {
             dudu: { scale: 1, translateX: 0, translateY: 0, dragging: false, startX: 0, startY: 0, prevX: 0, prevY: 0, tempImageData: null, pinchStartDistance: 0, pinchStartScale: 1 },
@@ -726,7 +712,6 @@
         async function openMapModal() {
             document.getElementById('mapModal').classList.add('active');
             await switchMapTab('dudu');
-            updateMapUploadVisibility();
         }
 
         function closeMapModal() { document.getElementById('mapModal').classList.remove('active'); }
@@ -738,11 +723,11 @@
             document.getElementById('mapPanelDudu').style.display = tab === 'dudu' ? 'block' : 'none';
             document.getElementById('mapPanelJianjiao').style.display = tab === 'jianjiao' ? 'block' : 'none';
             await loadMapImage(tab);
-            updateMapUploadVisibility();
         }
 
         function getVersionSuffix(version) { return version === 'dudu' ? 'Dudu' : 'Jianjiao'; }
 
+        // 加载图片（所有人可查看，管理员预览时仅管理员可见预览图）
         async function loadMapImage(version, previewSrc = null) {
             const suffix = getVersionSuffix(version);
             const container = document.getElementById(`mapContainer${suffix}`);
@@ -751,12 +736,19 @@
             const uploadWrapper = document.getElementById(`uploadWrapper${suffix}`);
             const saveCancel = document.getElementById(`saveCancel${suffix}`);
 
+            // 重置交互状态
             mapState[version].scale = 1;
             mapState[version].translateX = 0;
             mapState[version].translateY = 0;
 
-            let imageSrc = previewSrc;
-            if (!imageSrc) {
+            const isAdmin = checkLoginStatus();
+            let imageSrc = null;
+
+            // 预览图仅限管理员，普通用户忽略预览
+            if (previewSrc && isAdmin) {
+                imageSrc = previewSrc;
+            } else {
+                // 所有人都尝试从数据库加载图片
                 try {
                     imageSrc = await getImageFromDB(version);
                 } catch (err) {
@@ -765,8 +757,8 @@
                 }
             }
 
+            // 渲染地图或占位符
             if (imageSrc) {
-                applyTransform(version);
                 container.innerHTML = `
                     <div class="map-image-wrapper" id="mapWrapper${suffix}">
                         <div class="map-image-inner" id="mapInner${suffix}" style="transform: translate(-50%, -50%) scale(1);">
@@ -775,10 +767,13 @@
                     </div>
                 `;
                 zoomControls.style.display = 'flex';
-                deleteBtn.style.display = previewSrc ? 'none' : 'inline-flex';
-                uploadWrapper.style.display = previewSrc ? 'none' : (checkLoginStatus() ? 'flex' : 'none');
-                saveCancel.style.display = previewSrc ? 'flex' : 'none';
 
+                // 按钮权限：管理员操作，普通用户无操作按钮
+                deleteBtn.style.display = (isAdmin && !previewSrc) ? 'inline-flex' : 'none';
+                uploadWrapper.style.display = 'none'; // 已有图片时不显示上传按钮
+                saveCancel.style.display = (isAdmin && previewSrc) ? 'flex' : 'none';
+
+                // 绑定拖拽事件
                 const wrapper = document.getElementById(`mapWrapper${suffix}`);
                 if (wrapper) {
                     wrapper.addEventListener('mousedown', (e) => startDrag(e, version));
@@ -789,8 +784,36 @@
                 container.innerHTML = '<span class="map-placeholder">暂无图片，请管理员上传</span>';
                 zoomControls.style.display = 'none';
                 deleteBtn.style.display = 'none';
-                uploadWrapper.style.display = checkLoginStatus() ? 'flex' : 'none';
                 saveCancel.style.display = 'none';
+                // 管理员且无图片时显示上传按钮
+                uploadWrapper.style.display = (isAdmin && !mapState[version].tempImageData) ? 'flex' : 'none';
+            }
+        }
+
+        // 仅更新按钮可见性（用于登录/登出时，不重新加载图片）
+        function updateMapButtonsVisibility() {
+            const version = currentMapTab;
+            const suffix = getVersionSuffix(version);
+            const isAdmin = checkLoginStatus();
+            const container = document.getElementById(`mapContainer${suffix}`);
+            const hasImage = container && container.querySelector('img');
+            const hasTemp = !!mapState[version].tempImageData;
+
+            const uploadWrapper = document.getElementById(`uploadWrapper${suffix}`);
+            const deleteBtn = document.getElementById(`deleteMapBtn${suffix}`);
+            const saveCancel = document.getElementById(`saveCancel${suffix}`);
+
+            if (uploadWrapper) {
+                // 管理员且无图片且无临时预览时显示上传按钮
+                uploadWrapper.style.display = (isAdmin && !hasImage && !hasTemp) ? 'flex' : 'none';
+            }
+            if (deleteBtn) {
+                // 管理员且有图片且不是预览状态（没有临时预览数据）时显示删除按钮
+                deleteBtn.style.display = (isAdmin && hasImage && !hasTemp) ? 'inline-flex' : 'none';
+            }
+            if (saveCancel) {
+                // 管理员且有临时预览数据时显示保存/取消按钮
+                saveCancel.style.display = (isAdmin && hasTemp) ? 'flex' : 'none';
             }
         }
 
@@ -838,14 +861,12 @@
             e.preventDefault();
             const state = mapState[version];
             const touches = e.touches;
-
             if (touches && touches.length === 2) {
                 state.dragging = false;
                 state.pinchStartDistance = getDistance(touches);
                 state.pinchStartScale = state.scale;
                 return;
             }
-
             const pos = getEventPos(e);
             if (!pos) return;
             state.dragging = true;
@@ -853,7 +874,6 @@
             state.startY = pos.y;
             state.prevX = state.translateX;
             state.prevY = state.translateY;
-
             document.addEventListener('mousemove', onDrag);
             document.addEventListener('mouseup', stopDrag);
             document.addEventListener('touchmove', onDrag, { passive: false });
@@ -871,7 +891,6 @@
             const version = currentMapTab;
             const state = mapState[version];
             const touches = e.touches;
-
             if (touches && touches.length === 2) {
                 if (state.pinchStartDistance > 0) {
                     const currentDistance = getDistance(touches);
@@ -882,7 +901,6 @@
                 }
                 return;
             }
-
             if (!state.dragging) return;
             e.preventDefault();
             const pos = getEventPos(e);
@@ -908,25 +926,7 @@
             document.removeEventListener('touchend', stopDrag);
         }
 
-        // 修复后的上传按钮可见性控制（不再重新加载图片，避免按钮消失）
-        async function updateMapUploadVisibility() {
-            const isAdmin = checkLoginStatus();
-            const duduWrapper = document.getElementById('uploadWrapperDudu');
-            const jianjiaoWrapper = document.getElementById('uploadWrapperJianjiao');
-            const duduDelete = document.getElementById('deleteMapBtnDudu');
-            const jianjiaoDelete = document.getElementById('deleteMapBtnJianjiao');
-
-            if (duduWrapper) {
-                duduWrapper.style.display = (isAdmin && !mapState.dudu.tempImageData) ? 'flex' : 'none';
-            }
-            if (jianjiaoWrapper) {
-                jianjiaoWrapper.style.display = (isAdmin && !mapState.jianjiao.tempImageData) ? 'flex' : 'none';
-            }
-            if (duduDelete) {
-                // 删除按钮仅在有图片时显示，已在 loadMapImage 中设置，此处可选
-            }
-        }
-
+        // 管理员选择文件（仅管理员可调用，按钮已做隐藏）
         function handleMapFileSelect(event, version) {
             const file = event.target.files[0];
             if (!file) return;
@@ -982,7 +982,7 @@
             }
         }
 
-        // 票价计算函数（保持不变）
+        // ========== 票价计算函数（无变动） ==========
         function basePrice(n) {
             if (n <= 0) return 0;
             if (n <= 5) return 2;
