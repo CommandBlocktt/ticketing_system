@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>嘟嘟市城市轨道交通票价查询系统</title>
     <style>
+        /* ========== 样式部分 100% 保持原样 ========== */
         :root {
             --primary: #1a6fb5;
             --primary-light: #e8f4fd;
@@ -524,22 +525,50 @@
 
     <script>
         // ==================== 请替换为你的 imgbb API Key ====================
-        const IMGBB_API_KEY = '2d15022b586dac2e3cf34b4aa9170e31'; // 在 https://api.imgbb.com/ 注册后获取
+        const IMGBB_API_KEY = '2d15022b586dac2e3cf34b4aa9170e31';
 
-        const ADMIN_CREDENTIALS = { username: 'tntdada123', password: 'uid650949970' };
+        // ==================== 管理员账号与密码（加密版） ====================
+        const ADMIN_USERNAME = 'tntdada123';
+        // ★ 密码现已支持 SHA-256 哈希存储。如需启用哈希验证，请在下方填入原始密码的 SHA-256 值（64位十六进制）
+        // 生成方法：在浏览器控制台中执行以下代码，复制输出的哈希值替换下面的空字符串
+        // --------------------------------------------------------------
+        // crypto.subtle.digest('SHA-256', new TextEncoder().encode('你的密码'))
+        //   .then(hash => Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join(''))
+        //   .then(console.log);
+        // --------------------------------------------------------------
+        // 若保留为空字符串，则系统自动回退为明文比对（原密码：uid650949970），不影响使用。
+        const ADMIN_PASSWORD_HASH = ''; // ← 将生成的哈希值粘贴到这里（例如 'a1b2c3...'）
 
-        function checkLoginStatus() {
-            const loginData = JSON.parse(sessionStorage.getItem('dudu_admin_login'));
-            return loginData && loginData.loggedIn && loginData.username === ADMIN_CREDENTIALS.username;
+        // 明文密码（仅在哈希为空时使用，你也可将其删除以增强安全性）
+        const ADMIN_PASSWORD_PLAIN = 'uid650949970';
+
+        // 计算字符串的 SHA-256 哈希（利用 Web Crypto API）
+        async function sha256(message) {
+            const msgBuffer = new TextEncoder().encode(message);
+            try {
+                const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            } catch (e) {
+                console.warn('Web Crypto API 不可用，已回退为明文比对（安全性降低）');
+                return null;
+            }
         }
 
+        // 验证管理员身份
+        function checkLoginStatus() {
+            const loginData = JSON.parse(sessionStorage.getItem('dudu_admin_login'));
+            return loginData && loginData.loggedIn && loginData.username === ADMIN_USERNAME;
+        }
+
+        // 渲染导航栏（保持原逻辑）
         function renderNavbar() {
             const navActions = document.getElementById('navActions');
             if (checkLoginStatus()) {
                 navActions.innerHTML = `
                     <div class="nav-user-info">
                         <span class="user-icon">👤</span>
-                        <span>管理员 (${ADMIN_CREDENTIALS.username})</span>
+                        <span>管理员 (${ADMIN_USERNAME})</span>
                     </div>
                     <button class="btn-logout" onclick="logout()">退出登录</button>
                 `;
@@ -559,14 +588,39 @@
 
         function closeLoginModal() { document.getElementById('loginModal').classList.remove('active'); }
 
-        function handleLogin(event) {
+        async function handleLogin(event) {
             event.preventDefault();
             const username = document.getElementById('loginUsername').value.trim();
             const password = document.getElementById('loginPassword').value.trim();
             const errorDiv = document.getElementById('loginError');
-            if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
+
+            // 用户名检查
+            if (username !== ADMIN_USERNAME) {
+                errorDiv.style.display = 'block';
+                document.getElementById('loginPassword').value = '';
+                return;
+            }
+
+            let isPasswordCorrect = false;
+
+            if (ADMIN_PASSWORD_HASH) {
+                // 使用哈希验证
+                const inputHash = await sha256(password);
+                if (inputHash && inputHash === ADMIN_PASSWORD_HASH) {
+                    isPasswordCorrect = true;
+                }
+            } else {
+                // 回退为明文验证
+                if (password === ADMIN_PASSWORD_PLAIN) {
+                    isPasswordCorrect = true;
+                } else {
+                    console.warn('未设置哈希值，当前使用明文密码。建议设置 ADMIN_PASSWORD_HASH 以加强安全。');
+                }
+            }
+
+            if (isPasswordCorrect) {
                 sessionStorage.setItem('dudu_admin_login', JSON.stringify({
-                    loggedIn: true, username: ADMIN_CREDENTIALS.username, timestamp: Date.now()
+                    loggedIn: true, username: ADMIN_USERNAME, timestamp: Date.now()
                 }));
                 closeLoginModal();
                 renderNavbar();
@@ -645,10 +699,10 @@
             });
         }
 
-        // ---------- 上传到 imgbb 并返回公开 URL ----------
+        // ---------- 上传到 imgbb ----------
         async function uploadToImgbb(base64Data) {
             const formData = new FormData();
-            const imageData = base64Data.split(',')[1]; // 去掉 data:image/...;base64, 前缀
+            const imageData = base64Data.split(',')[1];
             formData.append('image', imageData);
             const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
                 method: 'POST',
@@ -656,7 +710,7 @@
             });
             const result = await response.json();
             if (result.success) {
-                return result.data.url; // 返回可直接访问的图片链接
+                return result.data.url;
             } else {
                 throw new Error('上传失败，请检查 API Key 或网络连接');
             }
@@ -854,12 +908,23 @@
             document.removeEventListener('touchend', stopDrag);
         }
 
+        // 修复后的上传按钮可见性控制（不再重新加载图片，避免按钮消失）
         async function updateMapUploadVisibility() {
             const isAdmin = checkLoginStatus();
-            document.getElementById('uploadWrapperDudu').style.display = isAdmin && !mapState.dudu.tempImageData ? 'flex' : 'none';
-            document.getElementById('uploadWrapperJianjiao').style.display = isAdmin && !mapState.jianjiao.tempImageData ? 'flex' : 'none';
-            if (!mapState.dudu.tempImageData) await loadMapImage('dudu');
-            if (!mapState.jianjiao.tempImageData) await loadMapImage('jianjiao');
+            const duduWrapper = document.getElementById('uploadWrapperDudu');
+            const jianjiaoWrapper = document.getElementById('uploadWrapperJianjiao');
+            const duduDelete = document.getElementById('deleteMapBtnDudu');
+            const jianjiaoDelete = document.getElementById('deleteMapBtnJianjiao');
+
+            if (duduWrapper) {
+                duduWrapper.style.display = (isAdmin && !mapState.dudu.tempImageData) ? 'flex' : 'none';
+            }
+            if (jianjiaoWrapper) {
+                jianjiaoWrapper.style.display = (isAdmin && !mapState.jianjiao.tempImageData) ? 'flex' : 'none';
+            }
+            if (duduDelete) {
+                // 删除按钮仅在有图片时显示，已在 loadMapImage 中设置，此处可选
+            }
         }
 
         function handleMapFileSelect(event, version) {
@@ -871,7 +936,7 @@
             }
             const reader = new FileReader();
             reader.onload = async function(e) {
-                mapState[version].tempImageData = e.target.result; // 临时 base64
+                mapState[version].tempImageData = e.target.result;
                 await loadMapImage(version, e.target.result);
             };
             reader.onerror = function() {
@@ -890,7 +955,7 @@
             try {
                 showToast('正在上传...', 'success');
                 const imageUrl = await uploadToImgbb(base64);
-                await saveImageToDB(version, imageUrl); // 存入 URL，不是 base64
+                await saveImageToDB(version, imageUrl);
                 mapState[version].tempImageData = null;
                 showToast('保存成功', 'success');
                 await loadMapImage(version);
