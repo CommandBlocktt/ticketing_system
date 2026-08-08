@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>嘟嘟市城市轨道交通票价查询系统</title>
+    <style>
+        :root {
+            --primary: #1a6fb5;
+            --primary-light: #e8f4fd;
+            --primary-dark: #14578c;
+            --accent: #f0a030;
+            --accent-light: #fff8ed;
+            --danger: #c0392b;
+            --danger-light: #fef0ef;
+            --success: #27ae60;
+            --success-light: #edfaf3;
+            --bg: #f5f6f8;
+            --card-bg: #ffffff;
+            --text: #2c3e50;
+            --text-secondary: #5a6c7d;
+            --border: #e0e5ea;
+            --shadow: 0 2px 12px rgba(0,0,0,0.06);
+            --shadow-lg: 0 8px 32px rgba(0,0,0,0.10);
+            --radius: 16px;
+            --radius-sm: 10px;
+            --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
+            --font-mono: 'SF Mono','Cascadia Code','Consolas','Monaco','Menlo',monospace;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif;
+            background: var(--bg); color: var(--text); line-height:1.6; min-height:100vh;
+            -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+            padding-top: 60px;
+            -webkit-overflow-scrolling: touch;
+        }
+        body::before {
+            content:''; position:fixed; top:-200px; right:-200px; width:600px; height:600px;
+            background: radial-gradient(circle, rgba(26,111,181,0.04) 0%, transparent 70%);
+            border-radius:50%; pointer-events:none; z-index:0;
+        }
+        body::after {
+            content:''; position:fixed; bottom:-150px; left:-150px; width:500px; height:500px;
+            background: radial-gradient(circle, rgba(240,160,48,0.04) 0%, transparent 70%);
+            border-radius:50%; pointer-events:none; z-index:0;
+        }
+        .navbar {
+            position: fixed; top: 0; left: 0; right: 0; height: 60px;
+            background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 24px; z-index: 100; box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+        }
+        .navbar .nav-brand {
+            display: flex; align-items: center; gap: 10px;
+            font-weight: 700; font-size: 1.1rem; color: var(--text); text-decoration: none;
+        }
+        .navbar .nav-brand .nav-logo {
+            width: 34px; height: 34px; background: var(--primary); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; font-size: 18px; color: white;
+        }
+        .navbar .nav-actions { display: flex; align-items: center; gap: 12px; }
+        .nav-user-info { font-size: 0.9rem; font-weight: 500; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+        .nav-user-info .user-icon { font-size: 1.2rem; }
+        .btn {
+            display:inline-flex; align-items:center; gap:6px; padding:11px 22px; border:none;
+            border-radius:var(--radius-sm); font-size:0.95rem; font-weight:600; cursor:pointer;
+            transition:var(--transition); letter-spacing:0.01em; white-space:nowrap;
+        }
+        .btn-primary { background:var(--primary); color:#fff; box-shadow:0 2px 8px rgba(26,111,181,0.3); }
+        .btn-primary:hover { background:var(--primary-dark); box-shadow:0 4px 16px rgba(26,111,181,0.4); transform:translateY(-1px); }
+        .btn-outline { background:#fff; color:var(--primary); border:2px solid var(--primary); }
+        .btn-outline:hover { background:var(--primary-light); }
+        .btn-sm { padding:6px 14px; font-size:0.8rem; border-radius:6px; }
+        .btn-login {
+            background: var(--primary); color: #fff; padding: 6px 16px; font-size: 0.85rem;
+            border-radius: 6px; border: none; cursor: pointer; font-weight: 600; transition: var(--transition);
+        }
+        .btn-login:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 2px 8px rgba(26,111,181,0.3); }
+        .btn-logout {
+            background: transparent; color: var(--danger); padding: 6px 12px; font-size: 0.8rem;
+            border: 1px solid var(--danger); border-radius: 6px; cursor: pointer; font-weight: 500; transition: var(--transition);
+        }
+        .btn-logout:hover { background: var(--danger-light); }
+        .container { max-width:900px; margin:0 auto; padding:24px 16px 48px; position:relative; z-index:1; }
+        .header { text-align:center; margin-bottom:32px; }
+        .header .logo-icon {
+            display:inline-block; width:56px; height:56px; background:var(--primary); border-radius:50%;
+            margin-bottom:12px; position:relative; box-shadow:0 4px 16px rgba(26,111,181,0.25);
+        }
+        .header .logo-icon::after { content:'🚇'; font-size:28px; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); }
+        .header h1 { font-size:1.8rem; font-weight:700; color:var(--text); letter-spacing:-0.02em; margin-bottom:4px; }
+        .header .subtitle { font-size:0.95rem; color:var(--text-secondary); font-weight:400; }
+        .card {
+            background:var(--card-bg); border-radius:var(--radius); padding:24px 28px; margin-bottom:20px;
+            box-shadow:var(--shadow); border:1px solid var(--border); transition:var(--transition);
+        }
+        .card:hover { box-shadow:var(--shadow-lg); }
+        .card-header {
+            display:flex; align-items:center; gap:10px; margin-bottom:20px; padding-bottom:14px;
+            border-bottom:2px solid #f0f3f6;
+        }
+        .card-header .icon {
+            width:38px; height:38px; border-radius:10px; display:flex; align-items:center;
+            justify-content:center; font-size:20px; flex-shrink:0;
+        }
+        .icon-calc { background:var(--primary-light); color:var(--primary); }
+        .icon-warn { background:var(--accent-light); color:var(--accent); }
+        .icon-info { background:#eef2f7; color:#5a6c7d; }
+        .card-header h2 { font-size:1.15rem; font-weight:650; letter-spacing:-0.01em; }
+        .card-header .badge {
+            font-size:0.75rem; font-weight:600; padding:3px 10px; border-radius:20px;
+            letter-spacing:0.02em; flex-shrink:0;
+        }
+        .badge-required { background:#fef3cd; color:#856404; }
+        .form-row { display:flex; flex-wrap:wrap; gap:16px; margin-bottom:16px; }
+        .form-group { flex:1; min-width:160px; }
+        .form-group label {
+            display:block; font-size:0.85rem; font-weight:600; color:var(--text-secondary);
+            margin-bottom:5px; letter-spacing:0.01em;
+        }
+        .form-group label .unit { font-weight:400; color:#999; font-size:0.8rem; }
+        .input-wrapper { position:relative; display:flex; align-items:center; }
+        input[type="number"], input[type="text"], input[type="password"] {
+            width:100%; padding:11px 14px; border:2px solid var(--border); border-radius:var(--radius-sm);
+            font-size:1rem; font-family:var(--font-mono); font-weight:500; color:var(--text);
+            background:#fafbfc; transition:var(--transition); -moz-appearance:textfield; appearance:textfield;
+        }
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button { opacity:1; height:30px; }
+        input[type="number"]:focus, input[type="text"]:focus, input[type="password"]:focus {
+            outline:none; border-color:var(--primary); background:#fff;
+            box-shadow:0 0 0 4px rgba(26,111,181,0.08);
+        }
+        .input-suffix { position:absolute; right:12px; font-size:0.85rem; color:#999; pointer-events:none; font-weight:500; }
+        .checkbox-group {
+            display:flex; align-items:center; gap:10px; padding:10px 14px; background:#fafbfc;
+            border-radius:var(--radius-sm); border:2px solid var(--border); cursor:pointer;
+            transition:var(--transition); user-select:none; min-width:140px; justify-content:center;
+        }
+        .checkbox-group:hover { border-color:#c0c8d2; background:#f5f7f9; }
+        .checkbox-group input[type="checkbox"] { width:18px; height:18px; accent-color:var(--primary); cursor:pointer; flex-shrink:0; }
+        .checkbox-group .check-label { font-weight:600; font-size:0.9rem; cursor:pointer; white-space:nowrap; }
+        .checkbox-group .extra-hint { font-size:0.75rem; color:var(--accent); font-weight:500; }
+        .btn-row { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:8px; }
+        .quick-select-label { font-size:0.8rem; color:#7a8a98; font-weight:500; margin-right:2px; white-space:nowrap; }
+        .info-btn-row { margin-bottom:16px; }
+        .info-btn-row .btn { background:#f0f4f8; color:var(--text); border:1px solid var(--border); box-shadow:none; }
+        .info-btn-row .btn:hover { background:#e8f0f6; border-color:#c0c8d2; transform:none; }
+        .result-box {
+            margin-top:18px; padding:18px 20px; border-radius:var(--radius-sm); font-weight:600;
+            font-size:1.05rem; display:flex; align-items:center; gap:10px; transition:var(--transition);
+            animation:fadeInUp 0.35s ease;
+        }
+        @keyframes fadeInUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+        .result-normal { background:var(--primary-light); border:1px solid #c8ddf2; color:var(--primary-dark); }
+        .result-warning { background:#fef9e7; border:1px solid #f9e79f; color:#7d6608; }
+        .result-danger { background:var(--danger-light); border:1px solid #f5c6cb; color:var(--danger); }
+        .result-success { background:var(--success-light); border:1px solid #b7dfc5; color:#1e7e34; }
+        .result-box .result-icon { font-size:1.6rem; flex-shrink:0; }
+        .result-box .result-amount { font-size:2rem; font-weight:700; font-family:var(--font-mono); letter-spacing:-0.02em; flex-shrink:0; }
+        .result-box .result-unit { font-size:0.9rem; font-weight:500; opacity:0.8; flex-shrink:0; }
+        .detail-section {
+            margin-top:14px; padding:16px 18px; background:#fafbfc; border-radius:var(--radius-sm);
+            border:1px dashed #e0e5ea; font-size:0.88rem; color:var(--text-secondary);
+            line-height:1.7; animation:fadeInUp 0.4s ease;
+        }
+        .detail-section .detail-title { font-weight:650; color:var(--text); margin-bottom:6px; font-size:0.9rem; }
+        .detail-row { display:flex; justify-content:space-between; padding:3px 0; flex-wrap:wrap; gap:4px; }
+        .detail-row .detail-label { color:#7a8a98; }
+        .detail-row .detail-value { font-weight:500; color:var(--text); font-family:var(--font-mono); font-size:0.85rem; }
+        .highlight-num { color:var(--primary); font-weight:700; font-size:1rem; }
+        .highlight-warn { color:var(--danger); font-weight:700; }
+        .rules-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(250px,1fr)); gap:12px; margin-top:4px; }
+        .rule-item {
+            padding:14px 16px; background:#fafbfc; border-radius:var(--radius-sm); border-left:3px solid var(--primary);
+            font-size:0.85rem; color:var(--text-secondary); line-height:1.5;
+        }
+        .rule-item strong { color:var(--text); display:block; margin-bottom:2px; }
+        .rule-item.sea-rule { border-left-color:var(--accent); }
+        .rule-item.time-rule { border-left-color:var(--danger); }
+        .rule-item.refund-rule { border-left-color:var(--success); }
+        .tip-bar {
+            display:flex; align-items:flex-start; gap:8px; padding:12px 16px; background:#fffdf5;
+            border-radius:var(--radius-sm); border:1px solid #fdecc8; font-size:0.83rem;
+            color:#7d6608; margin-top:12px; line-height:1.5;
+        }
+        .tip-bar .tip-icon { flex-shrink:0; font-size:1.1rem; }
+        .modal-overlay {
+            position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5);
+            display:flex; align-items:center; justify-content:center; z-index:1000;
+            opacity:0; pointer-events:none; transition:opacity 0.3s ease;
+        }
+        .modal-overlay.active { opacity:1; pointer-events:auto; }
+        .modal-content {
+            background:#fff; border-radius:var(--radius); max-width:650px; width:90%;
+            max-height:80vh; overflow-y:auto; padding:28px 32px; box-shadow:var(--shadow-lg);
+            position:relative; animation:modalSlideIn 0.3s ease;
+        }
+        @keyframes modalSlideIn { from { transform:translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+        .modal-close {
+            position:absolute; top:14px; right:18px; background:none; border:none; font-size:1.8rem;
+            cursor:pointer; color:#7a8a98; line-height:1; transition:color 0.2s; background:#f5f6f8;
+            border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center;
+        }
+        .modal-close:hover { color:var(--danger); background:#fef0ef; }
+        .modal-title { font-size:1.3rem; font-weight:700; margin-bottom:16px; color:var(--text); display:flex; align-items:center; gap:8px; }
+        .modal-body { color:var(--text-secondary); line-height:1.8; font-size:0.95rem; white-space:pre-line; }
+        .modal-body p { margin-bottom:12px; }
+        .footer-note { text-align:center; font-size:0.78rem; color:#b0b9c3; margin-top:28px; letter-spacing:0.02em; }
+        .modal-content-wide { max-width:800px; }
+        .map-tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid #e0e5ea; }
+        .map-tab {
+            padding: 10px 20px; border: none; background: transparent;
+            font-size: 0.95rem; font-weight: 600; color: var(--text-secondary);
+            cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;
+            transition: var(--transition);
+        }
+        .map-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .map-tab:hover { color: var(--primary); }
+        .map-container {
+            text-align: center; min-height: 200px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; background: #fafbfc;
+            border-radius: var(--radius-sm); padding: 20px; border: 1px dashed var(--border);
+        }
+        .map-image-wrapper {
+            width: 100%; max-width: 100%; height: 50vh; max-height: 500px;
+            position: relative; overflow: hidden; border-radius: 8px; background: #fff;
+            touch-action: none;
+        }
+        .map-image-inner {
+            position: absolute; top: 50%; left: 50%;
+            transform-origin: center center;
+            cursor: grab; user-select: none; -webkit-user-drag: none;
+            will-change: transform;
+        }
+        .map-image-inner:active { cursor: grabbing; }
+        .map-image-inner img {
+            display: block; max-width: 100%; height: auto;
+            -webkit-user-drag: none; user-select: none; pointer-events: none;
+        }
+        .zoom-controls {
+            display: flex; gap: 8px; margin-top: 12px;
+            justify-content: center; align-items: center;
+        }
+        .zoom-btn {
+            background: #fff; border: 1px solid var(--border);
+            border-radius: 6px; width: 32px; height: 32px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem; font-weight: 600; cursor: pointer;
+            transition: var(--transition); color: var(--text);
+        }
+        .zoom-btn:hover { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+        .zoom-reset { font-size: 0.8rem; padding: 0 12px; width: auto; }
+        .upload-btn-wrapper, .save-cancel-wrapper {
+            margin-top: 15px; display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap;
+        }
+        .upload-btn-wrapper input[type="file"] { display: none; }
+        .delete-map-btn {
+            background: var(--danger-light); color: var(--danger);
+            border: 1px solid #f5c6cb; padding: 6px 14px; font-size: 0.8rem;
+            border-radius: 6px; cursor: pointer; font-weight: 500; transition: var(--transition);
+        }
+        .delete-map-btn:hover { background: #f5c6cb; color: #a71d2a; }
+        .btn-success { background: var(--success); color: #fff; border: none; }
+        .btn-success:hover { background: #219a52; }
+        .form-group-login { margin-bottom: 18px; }
+        .form-group-login label { display: block; font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+        .login-error { color: var(--danger); font-size: 0.85rem; margin-top: 8px; display: none; }
+        .btn-full { width: 100%; justify-content: center; }
+        .map-close-bottom { margin-top: 18px; display: flex; justify-content: center; }
+        .map-toast {
+            position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+            background: #333; color: #fff; padding: 10px 24px; border-radius: 30px;
+            font-size: 0.9rem; z-index: 2000; opacity: 0; transition: opacity 0.3s;
+            pointer-events: none; white-space: nowrap;
+        }
+        .map-toast.success { background: var(--success); }
+        .map-toast.error { background: var(--danger); }
+        @media (max-width:600px) {
+            .container { padding:12px 8px 32px; }
+            .card { padding:16px 14px; border-radius:12px; }
+            .card-header h2 { font-size:1rem; }
+            .form-row { gap:10px; }
+            .form-group { min-width:120px; }
+            .result-box .result-amount { font-size:1.5rem; }
+            .header h1 { font-size:1.4rem; }
+            .rules-grid { grid-template-columns:1fr; }
+            .btn { padding:10px 16px; font-size:0.85rem; }
+            .btn-row { gap:6px; }
+            .modal-content { padding:20px 18px; }
+            .navbar { padding: 0 12px; }
+            .navbar .nav-brand { font-size: 0.95rem; }
+        }
+        @media (max-width:380px) {
+            .form-group { min-width:100%; flex:1 1 100%; }
+            .checkbox-group { min-width:100%; }
+            .btn-row { flex-direction:column; align-items:flex-start; }
+            .btn-row .btn { width:100%; justify-content:center; }
+            body { padding-top: 55px; }
+            .navbar { height: 55px; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a class="nav-brand" href="#">
+            <span class="nav-logo">🚇</span>
+            <span>嘟嘟市轨道交通</span>
+        </a>
+        <div class="nav-actions" id="navActions"></div>
+    </nav>
+
+    <div class="modal-overlay" id="loginModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeLoginModal()">&times;</button>
+            <div class="modal-title">🔐 管理员登录</div>
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group-login">
+                    <label for="loginUsername">账号</label>
+                    <input type="text" id="loginUsername" placeholder="请输入管理员账号" required>
+                </div>
+                <div class="form-group-login">
+                    <label for="loginPassword">密码</label>
+                    <input type="password" id="loginPassword" placeholder="请输入密码" required>
+                </div>
+                <div class="login-error" id="loginError">账号或密码错误</div>
+                <button type="submit" class="btn btn-primary btn-full" style="margin-top: 8px;">登录</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="map-toast" id="mapToast"></div>
+
+    <div class="container">
+        <div class="header">
+            <div class="logo-icon"></div>
+            <h1>嘟嘟市城市轨道交通票价查询系统</h1>
+            <p class="subtitle">标准票价计算 · 补票规则查询</p>
+        </div>
+
+        <div class="info-btn-row">
+            <button class="btn btn-sm" onclick="openModal()"><span>📖</span> 票价计算说明</button>
+            <button class="btn btn-sm" onclick="openMapModal()"><span>🗺️</span> 查看线网图</button>
+        </div>
+
+        <div class="card" id="calc-standard">
+            <div class="card-header">
+                <div class="icon icon-calc">🎫</div>
+                <h2>标准票价计算器</h2>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>乘坐站数 <span class="unit">（站）</span></label>
+                    <div class="input-wrapper">
+                        <input type="number" id="stations" min="1" max="500" step="1" placeholder="请输入站数">
+                        <span class="input-suffix">站</span>
+                    </div>
+                </div>
+                <div class="form-group" style="flex:0 0 auto; min-width:150px;">
+                    <label>&nbsp;</label>
+                    <label class="checkbox-group" for="hasSea">
+                        <input type="checkbox" id="hasSea">
+                        <span class="check-label">🌊 包含过海段</span>
+                        <span class="extra-hint">+5.5元</span>
+                    </label>
+                </div>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="calculateStandard()">📐 计算票价</button>
+                <button class="btn btn-outline btn-sm" onclick="clearStandard()">清空</button>
+                <span class="quick-select-label">快速选择：</span>
+                <button class="btn btn-outline btn-sm" onclick="quickPreset(5)">5站</button>
+                <button class="btn btn-outline btn-sm" onclick="quickPreset(12)">12站</button>
+                <button class="btn btn-outline btn-sm" onclick="quickPreset(24)">24站</button>
+                <button class="btn btn-outline btn-sm" onclick="quickPreset(48)">48站</button>
+                <button class="btn btn-outline btn-sm" onclick="quickPreset(100)">100站</button>
+            </div>
+            <div id="standardResult"></div>
+            <div id="standardDetail"></div>
+        </div>
+
+        <div class="card" id="calc-supplement">
+            <div class="card-header">
+                <div class="icon icon-warn">⚠️</div>
+                <h2>补票金额计算器</h2>
+                <span class="badge badge-required">单程票专用</span>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>已付票款 <span class="unit">（元）</span></label>
+                    <div class="input-wrapper">
+                        <input type="number" id="paidAmount" min="0" max="100" step="0.1" placeholder="已付金额">
+                        <span class="input-suffix">元</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>实际乘坐站数 <span class="unit">（站）</span></label>
+                    <div class="input-wrapper">
+                        <input type="number" id="actualStations" min="1" max="500" step="1" placeholder="实际站数">
+                        <span class="input-suffix">站</span>
+                    </div>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group" style="flex:0 0 auto; min-width:150px;">
+                    <label class="checkbox-group" for="hasSeaSupplement">
+                        <input type="checkbox" id="hasSeaSupplement">
+                        <span class="check-label">🌊 实际过海</span>
+                        <span class="extra-hint">+5.5元</span>
+                    </label>
+                </div>
+                <div class="form-group" style="flex:0 0 auto; min-width:160px;">
+                    <label class="checkbox-group" for="isOvertime" style="border-color:#f5c6cb;">
+                        <input type="checkbox" id="isOvertime">
+                        <span class="check-label">⏰ 超时</span>
+                        <span class="extra-hint" style="color:#c0392b;">&gt;360分钟</span>
+                    </label>
+                </div>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="calculateSupplement()" style="background:#d97706; box-shadow:0 2px 8px rgba(217,119,6,0.3);">🧾 计算补票</button>
+                <button class="btn btn-outline btn-sm" onclick="clearSupplement()">清空</button>
+            </div>
+            <div id="supplementResult"></div>
+            <div id="supplementDetail"></div>
+            <div class="tip-bar" id="overtimeTip" style="display:none;">
+                <span class="tip-icon">💡</span>
+                <span>如因<strong>客流控制等非自身原因</strong>导致超时，可在<strong>7日内</strong>到嘟嘟市内车站客服中心申请退费。</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <div class="icon icon-info">📋</div>
+                <h2>收费标准规则详情</h2>
+            </div>
+            <div class="rules-grid">
+                <div class="rule-item"><strong>🏁 起步价</strong>5站以内（含5站）：<strong>2元</strong></div>
+                <div class="rule-item"><strong>📈 6–12站</strong>每递增1站加<strong>0.8元</strong><br><small>第6站=2.8元，第12站=7.6元</small></div>
+                <div class="rule-item"><strong>📈 13–24站</strong>每递增1站加<strong>0.7元</strong><br><small>第13站=8.3元，第24站=16.0元</small></div>
+                <div class="rule-item"><strong>📈 25–48站</strong>每递增1站加<strong>0.6元</strong><br><small>第25站=16.6元，第48站=30.4元</small></div>
+                <div class="rule-item"><strong>📈 49–100站</strong>每递增1站加<strong>0.5元</strong><br><small>第49站=30.9元，第100站=56.4元</small></div>
+                <div class="rule-item"><strong>📈 100站以上</strong>每递增1站加<strong>0.4元</strong></div>
+                <div class="rule-item sea-rule"><strong>🌊 过海段附加费</strong>一律加收<strong>5.5元</strong></div>
+                <div class="rule-item"><strong>🔒 封顶价</strong><strong>50元</strong>（含过海）</div>
+                <div class="rule-item time-rule"><strong>⏰ 超时补票</strong>最大乘车时间<strong>360分钟</strong>超时在原有票价基础上<strong>加收50元</strong>（不受封顶限制）</div>
+                <div class="rule-item refund-rule"><strong>🔙 退费说明</strong>因客流控制等非自身原因超时，<strong>7日内</strong>可到客服中心退费</div>
+            </div>
+        </div>
+
+        <p class="footer-note">本查询系统仅供参考，实际收费以嘟嘟市轨道交通官方规定为准 · 数据版本 2026.08</p>
+    </div>
+
+    <div class="modal-overlay" id="infoModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <div class="modal-title">📖 票价计算说明</div>
+            <div class="modal-body">
+                <p>根据《嘟嘟市轨道交通收费规则》：嘟嘟地铁线网票价按车站数量，起步5站以内 2 元；6至 12 站范围内每递增 1 站加 0.8 元；13至 24 站范围内每递增 1 站加 0.7 元；25 至 48 站范围内每递增 1 站加 0.6元；49 至 100 站范围内每递增 1 站加 0.5 元；100 站以后，每递增 1 站0.4元，50 元封顶（含过海）。过海段一律加 5.5 元。</p>
+                <p><strong>以下情况需要补票：</strong></p>
+                <p>• 使用单程票的乘客超出所付费用可达范围。（按照超出范围费用补票）</p>
+                <p>• 乘客乘车超出规定时间：嘟嘟市轨道交通最大乘车时间为360分钟（6小时）。（在原有票价基础上加收50元，不受封顶限制）</p>
+                <p style="font-size:0.9rem; color:#7a8a98;">*注：乘客乘车出现客流控制等非自身原因导致超出乘车时间的，可在7日内到嘟嘟市内车站客服中心进行退费。</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="mapModal">
+        <div class="modal-content modal-content-wide">
+            <button class="modal-close" onclick="closeMapModal()">&times;</button>
+            <div class="modal-title">🗺️ 线网图查看</div>
+            <div class="map-tabs">
+                <button class="map-tab active" data-tab="dudu" onclick="switchMapTab('dudu')">嘟嘟版</button>
+                <button class="map-tab" data-tab="jianjiao" onclick="switchMapTab('jianjiao')">尖角版</button>
+            </div>
+            <div class="map-panel" id="mapPanelDudu">
+                <div class="map-container" id="mapContainerDudu">
+                    <span class="map-placeholder">暂无图片，请管理员上传</span>
+                </div>
+                <div class="zoom-controls" id="zoomControlsDudu" style="display: none;">
+                    <button class="zoom-btn" onclick="zoomMap('dudu', 0.2)">+</button>
+                    <button class="zoom-btn" onclick="zoomMap('dudu', -0.2)">-</button>
+                    <button class="zoom-btn zoom-reset" onclick="resetZoom('dudu')">重置</button>
+                </div>
+                <div class="upload-btn-wrapper" id="uploadWrapperDudu" style="display: none;">
+                    <button class="btn btn-sm" onclick="document.getElementById('mapFileInputDudu').click()">📤 上传图片</button>
+                    <button class="delete-map-btn" id="deleteMapBtnDudu" style="display: none;" onclick="deleteMap('dudu')">🗑️ 删除图片</button>
+                    <input type="file" id="mapFileInputDudu" accept="image/*" onchange="handleMapFileSelect(event, 'dudu')">
+                </div>
+                <div class="save-cancel-wrapper" id="saveCancelDudu" style="display: none;">
+                    <button class="btn btn-sm btn-success" onclick="saveMapImage('dudu')">💾 保存</button>
+                    <button class="btn btn-sm btn-outline" onclick="cancelMapPreview('dudu')">取消</button>
+                </div>
+                <div class="map-close-bottom">
+                    <button class="btn btn-outline btn-sm" onclick="closeMapModal()">关闭</button>
+                </div>
+            </div>
+            <div class="map-panel" id="mapPanelJianjiao" style="display: none;">
+                <div class="map-container" id="mapContainerJianjiao">
+                    <span class="map-placeholder">暂无图片，请管理员上传</span>
+                </div>
+                <div class="zoom-controls" id="zoomControlsJianjiao" style="display: none;">
+                    <button class="zoom-btn" onclick="zoomMap('jianjiao', 0.2)">+</button>
+                    <button class="zoom-btn" onclick="zoomMap('jianjiao', -0.2)">-</button>
+                    <button class="zoom-btn zoom-reset" onclick="resetZoom('jianjiao')">重置</button>
+                </div>
+                <div class="upload-btn-wrapper" id="uploadWrapperJianjiao" style="display: none;">
+                    <button class="btn btn-sm" onclick="document.getElementById('mapFileInputJianjiao').click()">📤 上传图片</button>
+                    <button class="delete-map-btn" id="deleteMapBtnJianjiao" style="display: none;" onclick="deleteMap('jianjiao')">🗑️ 删除图片</button>
+                    <input type="file" id="mapFileInputJianjiao" accept="image/*" onchange="handleMapFileSelect(event, 'jianjiao')">
+                </div>
+                <div class="save-cancel-wrapper" id="saveCancelJianjiao" style="display: none;">
+                    <button class="btn btn-sm btn-success" onclick="saveMapImage('jianjiao')">💾 保存</button>
+                    <button class="btn btn-sm btn-outline" onclick="cancelMapPreview('jianjiao')">取消</button>
+                </div>
+                <div class="map-close-bottom">
+                    <button class="btn btn-outline btn-sm" onclick="closeMapModal()">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ADMIN_CREDENTIALS = { username: 'tntdada123', password: 'uid650949970' };
+
+        function checkLoginStatus() {
+            const loginData = JSON.parse(sessionStorage.getItem('dudu_admin_login'));
+            return loginData && loginData.loggedIn && loginData.username === ADMIN_CREDENTIALS.username;
+        }
+
+        function renderNavbar() {
+            const navActions = document.getElementById('navActions');
+            if (checkLoginStatus()) {
+                navActions.innerHTML = `
+                    <div class="nav-user-info">
+                        <span class="user-icon">👤</span>
+                        <span>管理员 (${ADMIN_CREDENTIALS.username})</span>
+                    </div>
+                    <button class="btn-logout" onclick="logout()">退出登录</button>
+                `;
+            } else {
+                navActions.innerHTML = `<button class="btn-login" onclick="openLoginModal()">🔐 管理员登录</button>`;
+            }
+            updateMapUploadVisibility();
+        }
+
+        function openLoginModal() {
+            document.getElementById('loginModal').classList.add('active');
+            document.getElementById('loginUsername').value = '';
+            document.getElementById('loginPassword').value = '';
+            document.getElementById('loginError').style.display = 'none';
+            setTimeout(() => { document.getElementById('loginUsername').focus(); }, 100);
+        }
+
+        function closeLoginModal() { document.getElementById('loginModal').classList.remove('active'); }
+
+        function handleLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+            const errorDiv = document.getElementById('loginError');
+            if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
+                sessionStorage.setItem('dudu_admin_login', JSON.stringify({
+                    loggedIn: true, username: ADMIN_CREDENTIALS.username, timestamp: Date.now()
+                }));
+                closeLoginModal();
+                renderNavbar();
+            } else {
+                errorDiv.style.display = 'block';
+                document.getElementById('loginPassword').value = '';
+                document.getElementById('loginPassword').focus();
+            }
+        }
+
+        function logout() {
+            sessionStorage.removeItem('dudu_admin_login');
+            renderNavbar();
+        }
+
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('mapToast');
+            toast.textContent = msg;
+            toast.className = 'map-toast ' + type;
+            toast.style.opacity = '1';
+            clearTimeout(toast._timeout);
+            toast._timeout = setTimeout(() => {
+                toast.style.opacity = '0';
+            }, 2000);
+        }
+
+        // IndexedDB 封装
+        const DB_NAME = 'DuduMapDB';
+        const DB_VERSION = 1;
+        const STORE_NAME = 'maps';
+
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME, { keyPath: 'version' });
+                    }
+                };
+                request.onsuccess = (e) => resolve(e.target.result);
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        async function saveImageToDB(version, dataURL) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                store.put({ version, dataURL });
+                tx.oncomplete = () => resolve();
+                tx.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        async function getImageFromDB(version) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readonly');
+                const store = tx.objectStore(STORE_NAME);
+                const request = store.get(version);
+                request.onsuccess = () => resolve(request.result ? request.result.dataURL : null);
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        async function deleteImageFromDB(version) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                store.delete(version);
+                tx.oncomplete = () => resolve();
+                tx.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        // 线网图交互
+        let currentMapTab = 'dudu';
+        const mapState = {
+            dudu: { scale: 1, translateX: 0, translateY: 0, dragging: false, startX: 0, startY: 0, prevX: 0, prevY: 0, tempImageData: null, pinchStartDistance: 0, pinchStartScale: 1 },
+            jianjiao: { scale: 1, translateX: 0, translateY: 0, dragging: false, startX: 0, startY: 0, prevX: 0, prevY: 0, tempImageData: null, pinchStartDistance: 0, pinchStartScale: 1 }
+        };
+
+        async function openMapModal() {
+            document.getElementById('mapModal').classList.add('active');
+            await switchMapTab('dudu');
+            updateMapUploadVisibility();
+        }
+
+        function closeMapModal() { document.getElementById('mapModal').classList.remove('active'); }
+
+        async function switchMapTab(tab) {
+            currentMapTab = tab;
+            document.querySelectorAll('.map-tab').forEach(el => el.classList.remove('active'));
+            document.querySelector(`.map-tab[data-tab="${tab}"]`).classList.add('active');
+            document.getElementById('mapPanelDudu').style.display = tab === 'dudu' ? 'block' : 'none';
+            document.getElementById('mapPanelJianjiao').style.display = tab === 'jianjiao' ? 'block' : 'none';
+            await loadMapImage(tab);
+            updateMapUploadVisibility();
+        }
+
+        function getVersionSuffix(version) { return version === 'dudu' ? 'Dudu' : 'Jianjiao'; }
+
+        async function loadMapImage(version, previewSrc = null) {
+            const suffix = getVersionSuffix(version);
+            const container = document.getElementById(`mapContainer${suffix}`);
+            const deleteBtn = document.getElementById(`deleteMapBtn${suffix}`);
+            const zoomControls = document.getElementById(`zoomControls${suffix}`);
+            const uploadWrapper = document.getElementById(`uploadWrapper${suffix}`);
+            const saveCancel = document.getElementById(`saveCancel${suffix}`);
+
+            mapState[version].scale = 1;
+            mapState[version].translateX = 0;
+            mapState[version].translateY = 0;
+
+            let imageSrc = previewSrc;
+            if (!imageSrc) {
+                try {
+                    imageSrc = await getImageFromDB(version);
+                } catch (err) {
+                    console.error('读取图片失败', err);
+                    imageSrc = null;
+                }
+            }
+
+            if (imageSrc) {
+                applyTransform(version);
+                container.innerHTML = `
+                    <div class="map-image-wrapper" id="mapWrapper${suffix}">
+                        <div class="map-image-inner" id="mapInner${suffix}" style="transform: translate(-50%, -50%) scale(1);">
+                            <img src="${imageSrc}" alt="${version}线网图" id="mapImg${suffix}" draggable="false">
+                        </div>
+                    </div>
+                `;
+                zoomControls.style.display = 'flex';
+                deleteBtn.style.display = previewSrc ? 'none' : 'inline-flex';
+                uploadWrapper.style.display = previewSrc ? 'none' : (checkLoginStatus() ? 'flex' : 'none');
+                saveCancel.style.display = previewSrc ? 'flex' : 'none';
+
+                const wrapper = document.getElementById(`mapWrapper${suffix}`);
+                if (wrapper) {
+                    wrapper.addEventListener('mousedown', (e) => startDrag(e, version));
+                    wrapper.addEventListener('touchstart', (e) => startDrag(e, version), { passive: false });
+                    wrapper.addEventListener('wheel', (e) => handleWheel(e, version), { passive: false });
+                }
+            } else {
+                container.innerHTML = '<span class="map-placeholder">暂无图片，请管理员上传</span>';
+                zoomControls.style.display = 'none';
+                deleteBtn.style.display = 'none';
+                uploadWrapper.style.display = checkLoginStatus() ? 'flex' : 'none';
+                saveCancel.style.display = 'none';
+            }
+        }
+
+        function applyTransform(version) {
+            const suffix = getVersionSuffix(version);
+            const inner = document.getElementById(`mapInner${suffix}`);
+            if (!inner) return;
+            const state = mapState[version];
+            inner.style.transform = `translate(calc(-50% + ${state.translateX}px), calc(-50% + ${state.translateY}px)) scale(${state.scale})`;
+        }
+
+        function zoomMap(version, delta) {
+            const state = mapState[version];
+            const newScale = state.scale + delta;
+            if (newScale <= 0.01) return;
+            state.scale = newScale;
+            applyTransform(version);
+        }
+
+        function resetZoom(version) {
+            mapState[version].scale = 1;
+            mapState[version].translateX = 0;
+            mapState[version].translateY = 0;
+            applyTransform(version);
+        }
+
+        function handleWheel(e, version) {
+            e.preventDefault();
+            const state = mapState[version];
+            const delta = e.deltaY > 0 ? -0.05 : 0.05;
+            const newScale = state.scale + delta;
+            if (newScale <= 0.01) return;
+            state.scale = newScale;
+            applyTransform(version);
+        }
+
+        function getDistance(touches) {
+            if (touches.length < 2) return 0;
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        function startDrag(e, version) {
+            e.preventDefault();
+            const state = mapState[version];
+            const touches = e.touches;
+
+            if (touches && touches.length === 2) {
+                state.dragging = false;
+                state.pinchStartDistance = getDistance(touches);
+                state.pinchStartScale = state.scale;
+                return;
+            }
+
+            const pos = getEventPos(e);
+            if (!pos) return;
+            state.dragging = true;
+            state.startX = pos.x;
+            state.startY = pos.y;
+            state.prevX = state.translateX;
+            state.prevY = state.translateY;
+
+            document.addEventListener('mousemove', onDrag);
+            document.addEventListener('mouseup', stopDrag);
+            document.addEventListener('touchmove', onDrag, { passive: false });
+            document.addEventListener('touchend', stopDrag);
+        }
+
+        function getEventPos(e) {
+            if (e.touches && e.touches.length >= 1) {
+                return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+            return { x: e.clientX, y: e.clientY };
+        }
+
+        function onDrag(e) {
+            const version = currentMapTab;
+            const state = mapState[version];
+            const touches = e.touches;
+
+            if (touches && touches.length === 2) {
+                if (state.pinchStartDistance > 0) {
+                    const currentDistance = getDistance(touches);
+                    const newScale = state.pinchStartScale * (currentDistance / state.pinchStartDistance);
+                    if (newScale <= 0.01) return;
+                    state.scale = newScale;
+                    applyTransform(version);
+                }
+                return;
+            }
+
+            if (!state.dragging) return;
+            e.preventDefault();
+            const pos = getEventPos(e);
+            if (!pos) return;
+            const dx = pos.x - state.startX;
+            const dy = pos.y - state.startY;
+            state.translateX = state.prevX + dx;
+            state.translateY = state.prevY + dy;
+            applyTransform(version);
+        }
+
+        function stopDrag(e) {
+            const version = currentMapTab;
+            const state = mapState[version];
+            state.dragging = false;
+            if (state.pinchStartDistance > 0) {
+                state.pinchStartDistance = 0;
+                state.pinchStartScale = state.scale;
+            }
+            document.removeEventListener('mousemove', onDrag);
+            document.removeEventListener('mouseup', stopDrag);
+            document.removeEventListener('touchmove', onDrag);
+            document.removeEventListener('touchend', stopDrag);
+        }
+
+        async function updateMapUploadVisibility() {
+            const isAdmin = checkLoginStatus();
+            document.getElementById('uploadWrapperDudu').style.display = isAdmin && !mapState.dudu.tempImageData ? 'flex' : 'none';
+            document.getElementById('uploadWrapperJianjiao').style.display = isAdmin && !mapState.jianjiao.tempImageData ? 'flex' : 'none';
+            if (!mapState.dudu.tempImageData) await loadMapImage('dudu');
+            if (!mapState.jianjiao.tempImageData) await loadMapImage('jianjiao');
+        }
+
+        // 上传原图，不做任何压缩处理
+        function handleMapFileSelect(event, version) {
+            const file = event.target.files[0];
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                showToast('请选择有效的图片文件', 'error');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                mapState[version].tempImageData = e.target.result; // 完整的原始图片 base64
+                await loadMapImage(version, e.target.result);
+            };
+            reader.onerror = function() {
+                showToast('读取图片失败', 'error');
+            };
+            reader.readAsDataURL(file); // 以 data URL 格式读取原文件，不压缩
+            event.target.value = '';
+        }
+
+        async function saveMapImage(version) {
+            const data = mapState[version].tempImageData;
+            if (!data) {
+                showToast('没有可保存的图片', 'error');
+                return;
+            }
+            try {
+                await saveImageToDB(version, data); // 原图存入 IndexedDB
+                mapState[version].tempImageData = null;
+                showToast('保存成功', 'success');
+                await loadMapImage(version);
+            } catch (e) {
+                showToast('保存失败：' + e.message, 'error');
+            }
+        }
+
+        async function cancelMapPreview(version) {
+            mapState[version].tempImageData = null;
+            await loadMapImage(version);
+        }
+
+        async function deleteMap(version) {
+            if (confirm('确定要删除该版本的线网图吗？')) {
+                try {
+                    await deleteImageFromDB(version);
+                    mapState[version].tempImageData = null;
+                    await loadMapImage(version);
+                    showToast('图片已删除', 'success');
+                } catch (e) {
+                    showToast('删除失败：' + e.message, 'error');
+                }
+            }
+        }
+
+        // 票价计算函数（保持不变）
+        function basePrice(n) {
+            if (n <= 0) return 0;
+            if (n <= 5) return 2;
+            if (n <= 12) return 2 + (n - 5) * 0.8;
+            if (n <= 24) return 7.6 + (n - 12) * 0.7;
+            if (n <= 48) return 16.0 + (n - 24) * 0.6;
+            if (n <= 100) return 30.4 + (n - 48) * 0.5;
+            return 56.4 + (n - 100) * 0.4;
+        }
+
+        function finalPrice(n, hasSea) {
+            if (n <= 0) return 0;
+            const base = basePrice(n);
+            const withSea = hasSea ? base + 5.5 : base;
+            return Math.min(withSea, 50);
+        }
+
+        function originalFullPrice(n, hasSea) {
+            if (n <= 0) return 0;
+            return basePrice(n) + (hasSea ? 5.5 : 0);
+        }
+
+        function maxStationsFromBaseAmount(amount) {
+            if (amount < 2) return 0;
+            if (amount <= 2) return 5;
+            const thresholds = [
+                { maxStations: 5, maxPrice: 2 },
+                { maxStations: 12, maxPrice: 7.6 },
+                { maxStations: 24, maxPrice: 16.0 },
+                { maxStations: 48, maxPrice: 30.4 },
+                { maxStations: 100, maxPrice: 56.4 },
+            ];
+            for (let i = 0; i < thresholds.length; i++) {
+                if (amount <= thresholds[i].maxPrice) {
+                    const prevMaxPrice = i === 0 ? 2 : thresholds[i - 1].maxPrice;
+                    const prevMaxStations = i === 0 ? 5 : thresholds[i - 1].maxStations;
+                    const rate = [0.8, 0.7, 0.6, 0.5, 0.4][i];
+                    const extraStations = Math.floor((amount - prevMaxPrice) / rate);
+                    return prevMaxStations + extraStations;
+                }
+            }
+            const extraStations = Math.floor((amount - 56.4) / 0.4);
+            return 100 + extraStations;
+        }
+
+        function maxStationsFromPayment(totalPaid, hasSea) {
+            if (totalPaid >= 50) return 999;
+            if (hasSea) {
+                const baseAmount = totalPaid - 5.5;
+                if (baseAmount < 2) return 0;
+                const maxBase = Math.min(baseAmount, 50 - 5.5);
+                if (maxBase < 2) return 0;
+                return maxStationsFromBaseAmount(Math.min(maxBase, totalPaid - 5.5));
+            } else {
+                const effective = Math.min(totalPaid, 50);
+                return maxStationsFromBaseAmount(effective);
+            }
+        }
+
+        function getRangeDescription(n) {
+            if (n <= 0) return '无效站数';
+            if (n <= 5) return '起步区间（1-5站）';
+            if (n <= 12) return '第二区间（6-12站）';
+            if (n <= 24) return '第三区间（13-24站）';
+            if (n <= 48) return '第四区间（25-48站）';
+            if (n <= 100) return '第五区间（49-100站）';
+            return '第六区间（100站以上）';
+        }
+
+        function calculateStandard() {
+            const stationsInput = document.getElementById('stations');
+            const hasSea = document.getElementById('hasSea').checked;
+            const n = parseInt(stationsInput.value);
+            const resultDiv = document.getElementById('standardResult');
+            const detailDiv = document.getElementById('standardDetail');
+
+            if (isNaN(n) || n <= 0 || n > 500) {
+                resultDiv.innerHTML = `<div class="result-box result-warning"><span class="result-icon">⚠️</span><span>请输入有效的站数（1-500站）</span></div>`;
+                detailDiv.innerHTML = '';
+                return;
+            }
+
+            const base = basePrice(n);
+            const final = finalPrice(n, hasSea);
+            const rangeDesc = getRangeDescription(n);
+
+            let resultIcon = '🎫';
+            if (hasSea && final > base) resultIcon = '🌊';
+
+            resultDiv.innerHTML = `
+                <div class="result-box result-normal">
+                    <span class="result-icon">${resultIcon}</span>
+                    <span>应付票价：</span>
+                    <span class="result-amount">${final.toFixed(1)}</span>
+                    <span class="result-unit">元</span>
+                </div>`;
+
+            let detailHTML = `<div class="detail-section">
+                <div class="detail-title">📐 计算明细</div>
+                <div class="detail-row"><span class="detail-label">乘坐站数</span><span class="detail-value highlight-num">${n} 站</span></div>
+                <div class="detail-row"><span class="detail-label">所在区间</span><span class="detail-value">${rangeDesc}</span></div>
+                <div class="detail-row"><span class="detail-label">基础票价</span><span class="detail-value">${base.toFixed(2)} 元</span></div>`;
+            if (hasSea) {
+                detailHTML += `<div class="detail-row"><span class="detail-label">过海附加费</span><span class="detail-value" style="color:#d97706;">+5.50 元</span></div>
+                <div class="detail-row"><span class="detail-label">含过海合计</span><span class="detail-value">${(base + 5.5).toFixed(2)} 元</span></div>`;
+            }
+            detailHTML += `<div class="detail-row" style="border-top:1px solid #e0e5ea;margin-top:6px;padding-top:6px;"><span class="detail-label" style="font-weight:700;color:#1a6fb5;">最终票价</span><span class="detail-value highlight-num" style="font-size:1.1rem;">${final.toFixed(1)} 元</span></div>`;
+            detailHTML += `<div style="margin-top:8px;font-size:0.8rem;color:#999;">`;
+            if (n <= 5) {
+                detailHTML += `起步价 2.00 元（覆盖5站）`;
+            } else {
+                detailHTML += `起步价 2.00 元（前5站）`;
+                let remaining = n - 5;
+                if (remaining > 0 && n > 5) {
+                    const seg1 = Math.min(remaining, 7);
+                    detailHTML += `<br>+ ${seg1}站 × 0.8元 = ${(seg1*0.8).toFixed(2)}元（6-12站区间）`;
+                    remaining -= seg1;
+                }
+                if (remaining > 0 && n > 12) {
+                    const seg2 = Math.min(remaining, 12);
+                    detailHTML += `<br>+ ${seg2}站 × 0.7元 = ${(seg2*0.7).toFixed(2)}元（13-24站区间）`;
+                    remaining -= seg2;
+                }
+                if (remaining > 0 && n > 24) {
+                    const seg3 = Math.min(remaining, 24);
+                    detailHTML += `<br>+ ${seg3}站 × 0.6元 = ${(seg3*0.6).toFixed(2)}元（25-48站区间）`;
+                    remaining -= seg3;
+                }
+                if (remaining > 0 && n > 48) {
+                    const seg4 = Math.min(remaining, 52);
+                    detailHTML += `<br>+ ${seg4}站 × 0.5元 = ${(seg4*0.5).toFixed(2)}元（49-100站区间）`;
+                    remaining -= seg4;
+                }
+                if (remaining > 0) {
+                    detailHTML += `<br>+ ${remaining}站 × 0.4元 = ${(remaining*0.4).toFixed(2)}元（100站以上）`;
+                }
+            }
+            detailHTML += `</div></div>`;
+            detailDiv.innerHTML = detailHTML;
+        }
+
+        function clearStandard() {
+            document.getElementById('stations').value = '';
+            document.getElementById('hasSea').checked = false;
+            document.getElementById('standardResult').innerHTML = '';
+            document.getElementById('standardDetail').innerHTML = '';
+        }
+
+        function quickPreset(n) {
+            document.getElementById('stations').value = n;
+            calculateStandard();
+            document.getElementById('standardResult').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function calculateSupplement() {
+            const paidAmount = parseFloat(document.getElementById('paidAmount').value);
+            const actualStations = parseInt(document.getElementById('actualStations').value);
+            const hasSea = document.getElementById('hasSeaSupplement').checked;
+            const isOvertime = document.getElementById('isOvertime').checked;
+            const resultDiv = document.getElementById('supplementResult');
+            const detailDiv = document.getElementById('supplementDetail');
+            const overtimeTip = document.getElementById('overtimeTip');
+
+            if (isNaN(paidAmount) || paidAmount < 0) {
+                resultDiv.innerHTML = `<div class="result-box result-warning"><span class="result-icon">⚠️</span><span>请输入有效的已付金额（≥0元）</span></div>`;
+                detailDiv.innerHTML = '';
+                overtimeTip.style.display = 'none';
+                return;
+            }
+            if (isNaN(actualStations) || actualStations <= 0 || actualStations > 500) {
+                resultDiv.innerHTML = `<div class="result-box result-warning"><span class="result-icon">⚠️</span><span>请输入有效的站数（1-500站）</span></div>`;
+                detailDiv.innerHTML = '';
+                overtimeTip.style.display = 'none';
+                return;
+            }
+
+            const standardCappedPrice = finalPrice(actualStations, hasSea);
+            const originalPrice = originalFullPrice(actualStations, hasSea);
+            const maxStationsReachable = maxStationsFromPayment(paidAmount, hasSea);
+
+            let supplementAmount = 0;
+            let reasonText = '';
+            let resultClass = 'result-success';
+            let resultIcon = '✅';
+            let needsSupplement = false;
+
+            if (isOvertime) {
+                const totalPayable = originalPrice + 50;
+                supplementAmount = Math.max(0, totalPayable - paidAmount);
+                needsSupplement = supplementAmount > 0;
+                resultClass = needsSupplement ? 'result-danger' : 'result-success';
+                resultIcon = needsSupplement ? '⏰' : '✅';
+                reasonText = `超时（>360分钟），原有票价${originalPrice.toFixed(1)}元 + 50元`;
+                if (!needsSupplement) reasonText += '已付金额已覆盖';
+                overtimeTip.style.display = 'block';
+            } else if (standardCappedPrice > paidAmount) {
+                supplementAmount = standardCappedPrice - paidAmount;
+                needsSupplement = true;
+                resultClass = 'result-warning';
+                resultIcon = '💳';
+                reasonText = '实际乘坐站数超出已付费用可达范围';
+                overtimeTip.style.display = 'none';
+            } else {
+                supplementAmount = 0;
+                resultClass = 'result-success';
+                resultIcon = '✅';
+                reasonText = '实际乘坐站数在已付费用可达范围内，无需补票';
+                overtimeTip.style.display = 'none';
+            }
+
+            supplementAmount = Math.round(supplementAmount * 10) / 10;
+
+            resultDiv.innerHTML = `
+                <div class="result-box ${resultClass}">
+                    <span class="result-icon">${resultIcon}</span>
+                    ${needsSupplement ? '<span>需补票：</span>' : '<span>补票金额：</span>'}
+                    <span class="result-amount">${supplementAmount.toFixed(1)}</span>
+                    <span class="result-unit">元</span>
+                    <span style="font-size:0.82rem;opacity:0.85;">（${reasonText}）</span>
+                </div>`;
+
+            let detailHTML = `<div class="detail-section">
+                <div class="detail-title">🧾 补票计算明细</div>
+                <div class="detail-row"><span class="detail-label">已付票款</span><span class="detail-value">${paidAmount.toFixed(2)} 元</span></div>
+                <div class="detail-row"><span class="detail-label">实际乘坐站数</span><span class="detail-value highlight-num">${actualStations} 站</span></div>
+                <div class="detail-row"><span class="detail-label">是否过海</span><span class="detail-value">${hasSea ? '🌊 是（+5.5元）' : '否'}</span></div>`;
+
+            if (isOvertime) {
+                detailHTML += `
+                <div class="detail-row"><span class="detail-label">原有票价（不封顶）</span><span class="detail-value highlight-num">${originalPrice.toFixed(2)} 元</span></div>
+                <div class="detail-row" style="color:#c0392b;"><span class="detail-label">⏰ 超时加收</span><span class="detail-value highlight-warn">+50.00 元</span></div>
+                <div class="detail-row"><span class="detail-label">总应付票价</span><span class="detail-value highlight-warn">${(originalPrice + 50).toFixed(2)} 元</span></div>`;
+            } else {
+                detailHTML += `
+                <div class="detail-row"><span class="detail-label">标准票价（封顶）</span><span class="detail-value highlight-num">${standardCappedPrice.toFixed(2)} 元</span></div>
+                <div class="detail-row"><span class="detail-label">已付金额可达站数</span><span class="detail-value">${maxStationsReachable >= 999 ? '无限（封顶）' : maxStationsReachable + ' 站'}</span></div>`;
+            }
+
+            if (needsSupplement) {
+                detailHTML += `
+                <div class="detail-row" style="border-top:1px solid #e0e5ea;margin-top:6px;padding-top:6px;">
+                    <span class="detail-label" style="font-weight:700;color:#c0392b;">应补金额</span>
+                    <span class="detail-value highlight-warn" style="font-size:1.1rem;">${supplementAmount.toFixed(1)} 元</span>
+                </div>`;
+            } else {
+                detailHTML += `
+                <div class="detail-row" style="border-top:1px solid #e0e5ea;margin-top:6px;padding-top:6px;">
+                    <span class="detail-label" style="font-weight:700;color:#27ae60;">状态</span>
+                    <span class="detail-value" style="color:#27ae60;">无需补票 ✓</span>
+                </div>`;
+            }
+            detailHTML += `</div>`;
+            detailDiv.innerHTML = detailHTML;
+        }
+
+        function clearSupplement() {
+            document.getElementById('paidAmount').value = '';
+            document.getElementById('actualStations').value = '';
+            document.getElementById('hasSeaSupplement').checked = false;
+            document.getElementById('isOvertime').checked = false;
+            document.getElementById('supplementResult').innerHTML = '';
+            document.getElementById('supplementDetail').innerHTML = '';
+            document.getElementById('overtimeTip').style.display = 'none';
+        }
+
+        function openModal() { document.getElementById('infoModal').classList.add('active'); }
+        function closeModal() { document.getElementById('infoModal').classList.remove('active'); }
+
+        document.addEventListener('click', function(e) {
+            if (e.target === document.getElementById('infoModal')) closeModal();
+            if (e.target === document.getElementById('loginModal')) closeLoginModal();
+            if (e.target === document.getElementById('mapModal')) closeMapModal();
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                if (document.getElementById('infoModal').classList.contains('active')) closeModal();
+                if (document.getElementById('loginModal').classList.contains('active')) closeLoginModal();
+                if (document.getElementById('mapModal').classList.contains('active')) closeMapModal();
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            renderNavbar();
+            const stationsInput = document.getElementById('stations');
+            let debounceTimer;
+            stationsInput.addEventListener('input', function() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(calculateStandard, 400);
+            });
+            stationsInput.addEventListener('change', calculateStandard);
+            document.getElementById('hasSea').addEventListener('change', calculateStandard);
+
+            const paidInput = document.getElementById('paidAmount');
+            const actualStationsInput = document.getElementById('actualStations');
+            const hasSeaSupp = document.getElementById('hasSeaSupplement');
+            const isOvertimeCheck = document.getElementById('isOvertime');
+
+            [paidInput, actualStationsInput].forEach(el => {
+                el.addEventListener('input', function() {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(calculateSupplement, 400);
+                });
+                el.addEventListener('change', calculateSupplement);
+            });
+            [hasSeaSupp, isOvertimeCheck].forEach(el => {
+                el.addEventListener('change', calculateSupplement);
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    const activeEl = document.activeElement;
+                    if (activeEl && (activeEl.id === 'stations' || activeEl.id === 'hasSea')) {
+                        e.preventDefault();
+                        calculateStandard();
+                    } else if (activeEl && (activeEl.id === 'paidAmount' || activeEl.id === 'actualStations' ||
+                            activeEl.id === 'hasSeaSupplement' || activeEl.id === 'isOvertime')) {
+                        e.preventDefault();
+                        calculateSupplement();
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
