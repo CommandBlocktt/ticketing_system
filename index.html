@@ -312,8 +312,8 @@
                     <input type="password" id="loginPassword" placeholder="请输入密码" required>
                 </div>
                 <div class="form-group-login">
-                    <label for="githubToken">GitHub Token（已预置，无需填写）</label>
-                    <input type="password" id="githubToken" placeholder="如需更换可在此输入">
+                    <label for="githubToken">GitHub Token（仅管理员填写）</label>
+                    <input type="password" id="githubToken" placeholder="粘贴你的 GitHub Personal Access Token">
                 </div>
                 <div class="login-error" id="loginError" style="display:none;">账号或密码错误</div>
                 <button type="submit" class="btn btn-primary btn-full">登录</button>
@@ -453,12 +453,11 @@
     </div>
 
     <script>
-        // ==================== 配置 ====================
-        const GITHUB_OWNER = 'CommandBlocktt';
-        const GITHUB_REPO = 'ticketing_system';
-        const MAPS_FILE_PATH = 'maps.json';
-        const IMGBB_API_KEY = '2d15022b586dac2e3cf34b4aa9170e31'; // 可自行更换
-        const HARDCODED_GITHUB_TOKEN = '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'; // 预置 Token
+        // ==================== 配置（修改为你自己的信息） ====================
+        const GITHUB_OWNER = '你的GitHub用户名';   // 例如 'tntdada123'
+        const GITHUB_REPO = 'dudu-maps';           // 你的仓库名
+        const MAPS_FILE_PATH = 'maps.json';        // 文件路径
+        const IMGBB_API_KEY = '2d15022b586dac2e3cf34b4aa9170e31'; // 你的 imgbb key
 
         const ADMIN_USERNAME = 'tntdada123';
         const ADMIN_PASSWORD = 'uid650949970';
@@ -479,14 +478,10 @@
             e.preventDefault();
             const u = document.getElementById('loginUsername').value.trim();
             const p = document.getElementById('loginPassword').value.trim();
-            let token = document.getElementById('githubToken').value.trim();
+            const token = document.getElementById('githubToken').value.trim();
             if (u === ADMIN_USERNAME && p === ADMIN_PASSWORD) {
-                // 如果管理员没有手动输入 Token，则使用硬编码 Token
-                if (!token) {
-                    token = HARDCODED_GITHUB_TOKEN;
-                }
                 sessionStorage.setItem('dudu_admin', 'true');
-                sessionStorage.setItem('github_token', token);
+                if (token) sessionStorage.setItem('github_token', token);
                 closeLoginModal();
                 renderNavbar();
             } else {
@@ -499,8 +494,7 @@
             renderNavbar();
         }
         function getGitHubToken() {
-            // 优先使用手动输入的 Token，否则使用硬编码 Token
-            return sessionStorage.getItem('github_token') || HARDCODED_GITHUB_TOKEN;
+            return sessionStorage.getItem('github_token');
         }
 
         // ---------- 从 GitHub 读取 maps.json（绕过缓存） ----------
@@ -548,7 +542,7 @@
         async function updateMapsJSON(version, imageUrl) {
             const token = getGitHubToken();
             if (!token) {
-                alert('❌ 缺少 GitHub Token');
+                alert('❌ 缺少 GitHub Token，请在登录时输入 Token');
                 return false;
             }
             const apiUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${MAPS_FILE_PATH}`;
@@ -595,6 +589,29 @@
             }
         }
 
+        // ---------- 将图片文件转为 PNG（无损）避免压缩 ----------
+        function convertToPNG(file) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    canvas.toBlob(blob => {
+                        if (blob) {
+                            resolve(blob);
+                        } else {
+                            reject(new Error('Canvas 转 Blob 失败'));
+                        }
+                    }, 'image/png'); // 输出为 PNG，避免压缩
+                };
+                img.onerror = reject;
+                img.src = URL.createObjectURL(file);
+            });
+        }
+
         // ---------- 显示图片 ----------
         function showMapImage(version, src) {
             const suffix = version === 'dudu' ? 'Dudu' : 'Jianjiao';
@@ -631,7 +648,7 @@
             showMapImage(tab, maps[tab]);
         }
 
-        // ---------- 上传图片（直接上传原图） ----------
+        // ---------- 上传图片（转为 PNG 后上传） ----------
         async function handleUpload(event, version) {
             const file = event.target.files[0];
             if (!file) return;
@@ -639,8 +656,10 @@
             const uploadText = document.getElementById(`uploadText${suffix}`);
             if (uploadText) uploadText.style.display = 'inline';
             try {
+                // 转换为 PNG 格式，避免 imgbb 压缩
+                const pngBlob = await convertToPNG(file);
                 const formData = new FormData();
-                formData.append('image', file);
+                formData.append('image', pngBlob, 'image.png'); // 指定文件名以 png 结尾
                 const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: 'POST', body: formData });
                 const data = await res.json();
                 if (!data.success) throw new Error('上传图片到 imgbb 失败');
