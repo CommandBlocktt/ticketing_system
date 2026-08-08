@@ -131,9 +131,30 @@
         .checkbox-group .extra-hint { font-size:0.75rem; color:var(--accent); font-weight:500; }
         .btn-row { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:8px; }
         .quick-select-label { font-size:0.8rem; color:#7a8a98; font-weight:500; margin-right:2px; white-space:nowrap; }
-        .info-btn-row { margin-bottom:16px; }
-        .info-btn-row .btn { background:#f0f4f8; color:var(--text); border:1px solid var(--border); box-shadow:none; }
-        .info-btn-row .btn:hover { background:#e8f0f6; border-color:#c0c8d2; transform:none; }
+        .info-btn-row {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .info-btn-row .btn {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            border: 1.5px solid var(--primary);
+            box-shadow: 0 2px 6px rgba(26,111,181,0.1);
+            font-weight: 600;
+            border-radius: 8px;
+            padding: 8px 18px;
+            transition: all 0.3s ease;
+        }
+        .info-btn-row .btn:hover {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary-dark);
+            box-shadow: 0 4px 12px rgba(26,111,181,0.25);
+            transform: translateY(-1px);
+        }
         .result-box {
             margin-top:18px; padding:18px 20px; border-radius:var(--radius-sm); font-weight:600;
             font-size:1.05rem; display:flex; align-items:center; gap:10px; transition:var(--transition);
@@ -264,6 +285,10 @@
         }
         .map-toast.success { background: var(--success); }
         .map-toast.error { background: var(--danger); }
+        .map-loading-hint {
+            text-align: center; margin: 8px 0 16px; color: var(--text-secondary);
+            font-size: 0.85rem; opacity: 0.8;
+        }
         @media (max-width:600px) {
             .container { padding:12px 8px 32px; }
             .card { padding:16px 14px; border-radius:12px; }
@@ -310,8 +335,11 @@
     </div>
     <div class="map-toast" id="mapToast"></div>
     <div class="container">
-        <div class="header"><div class="logo-icon"></div><h1>嘟嘟市城市轨道交通票价查询系统</h1><p class="subtitle">标准票价计算 · 补票规则查询</p></div>
-        <div class="info-btn-row"><button class="btn btn-sm" onclick="openModal()"><span>📖</span> 票价计算说明</button><button class="btn btn-sm" onclick="openMapModal()"><span>🗺️</span> 查看线网图</button></div>
+        <div class="header"><div class="logo-icon"></div><h1>嘟嘟市城市轨道交通票价查询系统</h1><p class="subtitle">嘟尖两市通用 · 标准票价计算 · 补票规则查询</p></div>
+        <div class="info-btn-row">
+            <button class="btn btn-sm" onclick="openModal()"><span>📖</span> 票价计算说明</button>
+            <button class="btn btn-sm" onclick="openMapModal()"><span>🗺️</span> 查看线网图</button>
+        </div>
         <div class="card" id="calc-standard">
             <div class="card-header"><div class="icon icon-calc">🎫</div><h2>标准票价计算器</h2></div>
             <div class="form-row">
@@ -352,8 +380,19 @@
         </div>
         <p class="footer-note">本查询系统仅供参考 · 数据版本 2026.08</p>
     </div>
+    <!-- 票价计算说明弹窗（完整内容） -->
     <div class="modal-overlay" id="infoModal">
-        <div class="modal-content"><button class="modal-close" onclick="closeModal()">&times;</button><div class="modal-title">📖 票价计算说明</div><div class="modal-body"><p>根据《嘟嘟市轨道交通收费规则》…</p><p><strong>以下情况需要补票：</strong></p><p>• 使用单程票的乘客超出所付费用可达范围。</p><p>• 乘客乘车超出规定时间（360分钟）。</p><p style="font-size:0.9rem; color:#7a8a98;">*注：乘客因客流控制等非自身原因超时，可在7日内到嘟嘟市内车站客服中心退费。</p></div></div>
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <div class="modal-title">📖 票价计算说明</div>
+            <div class="modal-body">
+                <p>根据《嘟嘟市轨道交通收费规则》：嘟嘟地铁线网票价按车站数量，起步5站以内 2 元；6至 12 站范围内每递增 1 站加 0.8 元；13至 24 站范围内每递增 1 站加 0.7 元；25 至 48 站范围内每递增 1 站加 0.6元；49 至 100 站范围内每递增 1 站加 0.5 元；100 站以后，每递增 1 站0.4元，50 元封顶（含过海）。过海段一律加 5.5 元。</p>
+                <p><strong>以下情况需要补票：</strong></p>
+                <p>• 使用单程票的乘客超出所付费用可达范围。（按照超出范围费用补票）</p>
+                <p>• 乘客乘车超出规定时间：嘟嘟市轨道交通最大乘车时间为360分钟（6小时）。（在原有票价基础上加收50元，不受封顶限制）</p>
+                <p style="font-size:0.9rem; color:#7a8a98;">*注：乘客乘车出现客流控制等非自身原因导致超出乘车时间的，可在7日内到嘟嘟市内车站客服中心进行退费。</p>
+            </div>
+        </div>
     </div>
     <!-- 线网图模态框 -->
     <div class="modal-overlay" id="mapModal">
@@ -364,6 +403,7 @@
                 <button class="map-tab active" data-tab="dudu" onclick="switchMapTab('dudu')">嘟嘟版</button>
                 <button class="map-tab" data-tab="jianjiao" onclick="switchMapTab('jianjiao')">尖角版</button>
             </div>
+            <div class="map-loading-hint">⏳ 图片加载时间较长，请耐心等候</div>
             <div class="map-panel" id="mapPanelDudu">
                 <div class="map-container" id="mapContainerDudu">加载中...</div>
                 <div class="zoom-controls" id="zoomControlsDudu" style="display:none;">
@@ -395,7 +435,7 @@
         </div>
     </div>
     <script>
-        // 配置
+        // ==================== 配置 ====================
         const GITHUB_OWNER = 'CommandBlocktt';
         const GITHUB_REPO = 'ticketing_system';
         const MAPS_FILE_PATH = 'maps.json';
@@ -513,7 +553,6 @@
             document.removeEventListener('touchmove', onDrag); document.removeEventListener('touchend', stopDrag);
         }
 
-        // 显示图片
         function showMapImage(version, src) {
             const s = suf(version);
             const container = document.getElementById(`mapContainer${s}`);
@@ -531,7 +570,6 @@
             }
             document.getElementById(`uploadWrapper${s}`).style.display = checkLoginStatus() ? 'flex' : 'none';
         }
-
         async function openMapModal() { document.getElementById('mapModal').classList.add('active'); await switchMapTab('dudu'); }
         function closeMapModal() { document.getElementById('mapModal').classList.remove('active'); }
         async function switchMapTab(tab) {
@@ -542,7 +580,6 @@
             const maps = await fetchMapsJSON();
             showMapImage(tab, maps[tab]);
         }
-
         async function handleUpload(event, version) {
             const file = event.target.files[0]; if (!file) return;
             const s = suf(version); const ut = document.getElementById(`uploadText${s}`); if (ut) ut.style.display='inline';
@@ -557,26 +594,77 @@
             finally { if (ut) ut.style.display='none'; }
         }
 
-        // 票价计算（保留原完整函数）
+        // ========== 票价计算 ==========
         function basePrice(n) {
-            if (n<=0) return 0; if (n<=5) return 2; if (n<=12) return 2+(n-5)*0.8;
-            if (n<=24) return 7.6+(n-12)*0.7; if (n<=48) return 16.0+(n-24)*0.6;
-            if (n<=100) return 30.4+(n-48)*0.5; return 56.4+(n-100)*0.4;
+            if (n <= 0) return 0;
+            if (n <= 5) return 2;
+            if (n <= 12) return 2 + (n - 5) * 0.8;
+            if (n <= 24) return 7.6 + (n - 12) * 0.7;
+            if (n <= 48) return 16.0 + (n - 24) * 0.6;
+            if (n <= 100) return 30.4 + (n - 48) * 0.5;
+            return 56.4 + (n - 100) * 0.4;
         }
-        function finalPrice(n, sea) { if (n<=0) return 0; return Math.min(basePrice(n)+(sea?5.5:0), 50); }
-        function originalFullPrice(n, sea) { if (n<=0) return 0; return basePrice(n)+(sea?5.5:0); }
-        function maxStationsFromBaseAmount(a) { /* 省略，保留原逻辑 */ }
-        function maxStationsFromPayment(t, sea) { /* 省略 */ }
-        function getRangeDescription(n) { /* 省略 */ }
-        function calculateStandard() { /* 完整逻辑保留 */ }
+        function finalPrice(n, sea) { if (n <= 0) return 0; return Math.min(basePrice(n)+(sea?5.5:0), 50); }
+        function originalFullPrice(n, sea) { if (n <= 0) return 0; return basePrice(n)+(sea?5.5:0); }
+        function maxStationsFromBaseAmount(a) {
+            if (a < 2) return 0; if (a <= 2) return 5;
+            const th = [{m:5,p:2},{m:12,p:7.6},{m:24,p:16},{m:48,p:30.4},{m:100,p:56.4}];
+            for (let i=0;i<th.length;i++) if (a<=th[i].p) { const pm=i===0?2:th[i-1].p, ps=i===0?5:th[i-1].m; return ps+Math.floor((a-pm)/[0.8,0.7,0.6,0.5,0.4][i]); }
+            return 100+Math.floor((a-56.4)/0.4);
+        }
+        function maxStationsFromPayment(t, sea) {
+            if (t>=50) return 999;
+            if (sea) { const b=t-5.5; if(b<2)return 0; return maxStationsFromBaseAmount(Math.min(b,50-5.5)); }
+            else return maxStationsFromBaseAmount(Math.min(t,50));
+        }
+        function getRangeDescription(n) {
+            if (n<=0) return '无效站数'; if (n<=5) return '起步区间（1-5站）'; if (n<=12) return '第二区间（6-12站）';
+            if (n<=24) return '第三区间（13-24站）'; if (n<=48) return '第四区间（25-48站）'; if (n<=100) return '第五区间（49-100站）';
+            return '第六区间（100站以上）';
+        }
+        function calculateStandard() {
+            const n = parseInt(document.getElementById('stations').value);
+            const hasSea = document.getElementById('hasSea').checked;
+            const res = document.getElementById('standardResult'), det = document.getElementById('standardDetail');
+            if (isNaN(n) || n<=0 || n>500) { res.innerHTML='<div class="result-box result-warning"><span class="result-icon">⚠️</span>请输入有效站数</div>'; det.innerHTML=''; return; }
+            const base = basePrice(n), final = finalPrice(n, hasSea), range = getRangeDescription(n);
+            res.innerHTML=`<div class="result-box result-normal"><span class="result-icon">🎫</span>应付票价：<span class="result-amount">${final.toFixed(1)}</span><span class="result-unit">元</span></div>`;
+            let detail=`<div class="detail-section"><div class="detail-title">📐 计算明细</div><div class="detail-row"><span class="detail-label">乘坐站数</span><span class="detail-value highlight-num">${n} 站</span></div><div class="detail-row"><span class="detail-label">所在区间</span><span class="detail-value">${range}</span></div><div class="detail-row"><span class="detail-label">基础票价</span><span class="detail-value">${base.toFixed(2)} 元</span></div>`;
+            if (hasSea) detail += `<div class="detail-row"><span class="detail-label">过海附加费</span><span class="detail-value" style="color:#d97706;">+5.50 元</span></div><div class="detail-row"><span class="detail-label">含过海合计</span><span class="detail-value">${(base+5.5).toFixed(2)} 元</span></div>`;
+            detail += `<div class="detail-row" style="border-top:1px solid #e0e5ea;margin-top:6px;padding-top:6px;"><span class="detail-label" style="font-weight:700;color:#1a6fb5;">最终票价</span><span class="detail-value highlight-num" style="font-size:1.1rem;">${final.toFixed(1)} 元</span></div></div>`;
+            det.innerHTML=detail;
+        }
         function clearStandard() { document.getElementById('stations').value=''; document.getElementById('hasSea').checked=false; document.getElementById('standardResult').innerHTML=''; document.getElementById('standardDetail').innerHTML=''; }
         function quickPreset(n) { document.getElementById('stations').value=n; calculateStandard(); }
-        function calculateSupplement() { /* 完整逻辑保留 */ }
-        function clearSupplement() { /* 完整逻辑保留 */ }
+        function calculateSupplement() {
+            const paid = parseFloat(document.getElementById('paidAmount').value);
+            const actual = parseInt(document.getElementById('actualStations').value);
+            const hasSea = document.getElementById('hasSeaSupplement').checked;
+            const overtime = document.getElementById('isOvertime').checked;
+            const res = document.getElementById('supplementResult'), det = document.getElementById('supplementDetail'), tip = document.getElementById('overtimeTip');
+            if (isNaN(paid)||paid<0) { res.innerHTML='<div class="result-box result-warning">请输入有效已付金额</div>'; det.innerHTML=''; tip.style.display='none'; return; }
+            if (isNaN(actual)||actual<=0||actual>500) { res.innerHTML='<div class="result-box result-warning">请输入有效站数</div>'; det.innerHTML=''; tip.style.display='none'; return; }
+            const capped = finalPrice(actual, hasSea), original = originalFullPrice(actual, hasSea), maxR = maxStationsFromPayment(paid, hasSea);
+            let amount=0, reason='', cls='result-success', icon='✅';
+            if (overtime) { const total=original+50; amount=Math.max(0,total-paid); cls=amount>0?'result-danger':'result-success'; icon=amount>0?'⏰':'✅'; reason=`超时（>360分钟）`; tip.style.display='block'; }
+            else if (capped>paid) { amount=capped-paid; cls='result-warning'; icon='💳'; reason='超出已付费用可达范围'; tip.style.display='none'; }
+            else { reason='无需补票'; tip.style.display='none'; }
+            amount=Math.round(amount*10)/10;
+            res.innerHTML=`<div class="result-box ${cls}"><span class="result-icon">${icon}</span>${amount>0?'需补票：':'补票金额：'}<span class="result-amount">${amount.toFixed(1)}</span><span class="result-unit">元</span>（${reason}）</div>`;
+            let detail=`<div class="detail-section"><div class="detail-title">🧾 补票计算明细</div><div class="detail-row"><span class="detail-label">已付票款</span><span class="detail-value">${paid.toFixed(2)} 元</span></div><div class="detail-row"><span class="detail-label">实际乘坐站数</span><span class="detail-value highlight-num">${actual} 站</span></div><div class="detail-row"><span class="detail-label">是否过海</span><span class="detail-value">${hasSea?'🌊 是':'否'}</span></div>`;
+            if (overtime) detail += `<div class="detail-row"><span class="detail-label">原有票价（不封顶）</span><span class="detail-value highlight-num">${original.toFixed(2)} 元</span></div><div class="detail-row" style="color:#c0392b;"><span class="detail-label">⏰ 超时加收</span><span class="detail-value highlight-warn">+50.00 元</span></div>`;
+            else detail += `<div class="detail-row"><span class="detail-label">标准票价（封顶）</span><span class="detail-value highlight-num">${capped.toFixed(2)} 元</span></div><div class="detail-row"><span class="detail-label">可达站数</span><span class="detail-value">${maxR>=999?'无限':maxR+' 站'}</span></div>`;
+            detail += `<div class="detail-row" style="border-top:1px solid #e0e5ea;margin-top:6px;padding-top:6px;"><span class="detail-label" style="font-weight:700;color:${amount>0?'#c0392b':'#27ae60'};">${amount>0?'应补金额':'状态'}</span><span class="detail-value highlight-warn" style="font-size:1.1rem;">${amount>0?amount.toFixed(1)+' 元':'无需补票 ✓'}</span></div></div>`;
+            det.innerHTML=detail;
+        }
+        function clearSupplement() {
+            document.getElementById('paidAmount').value=''; document.getElementById('actualStations').value='';
+            document.getElementById('hasSeaSupplement').checked=false; document.getElementById('isOvertime').checked=false;
+            document.getElementById('supplementResult').innerHTML=''; document.getElementById('supplementDetail').innerHTML='';
+            document.getElementById('overtimeTip').style.display='none';
+        }
         function openModal() { document.getElementById('infoModal').classList.add('active'); }
         function closeModal() { document.getElementById('infoModal').classList.remove('active'); }
-        // 其他省略的函数请从之前的完整版补充，这里保证交互完整即可
-
         document.addEventListener('click', e => {
             if (e.target === document.getElementById('infoModal')) closeModal();
             if (e.target === document.getElementById('loginModal')) closeLoginModal();
