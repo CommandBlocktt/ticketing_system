@@ -243,7 +243,6 @@
             will-change: transform;
         }
         .map-image-inner:active { cursor: grabbing; }
-        /* 修复清晰度：移除尺寸限制，使用原始分辨率 */
         .map-image-inner img {
             display: block;
             width: auto;
@@ -295,6 +294,10 @@
             text-align: center; margin: 8px 0 16px; color: var(--text-secondary);
             font-size: 0.85rem; opacity: 0.8;
         }
+        .refresh-hint {
+            display: inline-block; margin-left: 10px; font-size: 0.8rem; color: var(--danger);
+            cursor: pointer; text-decoration: underline;
+        }
         @media (max-width:600px) {
             .container { padding:12px 8px 32px; }
             .card { padding:16px 14px; border-radius:12px; }
@@ -325,6 +328,7 @@
         <a class="nav-brand" href="#"><span class="nav-logo">🚇</span><span>嘟嘟市轨道交通|票价查询</span></a>
         <div class="nav-actions" id="navActions"></div>
     </nav>
+    <!-- 其余模态框、卡片等结构完全不变（与前一个版本一致） -->
     <div class="modal-overlay" id="loginModal">
         <div class="modal-content">
             <button class="modal-close" onclick="closeLoginModal()">&times;</button>
@@ -346,6 +350,7 @@
             <button class="btn btn-sm" onclick="openModal()"><span>📖</span> 票价计算说明</button>
             <button class="btn btn-sm" onclick="openMapModal()"><span>🗺️</span> 查看线网图</button>
         </div>
+        <!-- 票价计算卡片保持不变 -->
         <div class="card" id="calc-standard">
             <div class="card-header"><div class="icon icon-calc">🎫</div><h2>标准票价计算器</h2></div>
             <div class="form-row">
@@ -386,7 +391,6 @@
         </div>
         <p class="footer-note">本查询系统仅供参考 · 数据版本 2026.08</p>
     </div>
-    <!-- 票价计算说明弹窗 -->
     <div class="modal-overlay" id="infoModal">
         <div class="modal-content">
             <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -400,7 +404,6 @@
             </div>
         </div>
     </div>
-    <!-- 线网图模态框 -->
     <div class="modal-overlay" id="mapModal">
         <div class="modal-content modal-content-wide">
             <button class="modal-close" onclick="closeMapModal()">&times;</button>
@@ -409,7 +412,7 @@
                 <button class="map-tab active" data-tab="dudu" onclick="switchMapTab('dudu')">嘟嘟版</button>
                 <button class="map-tab" data-tab="jianjiao" onclick="switchMapTab('jianjiao')">尖角版</button>
             </div>
-            <div class="map-loading-hint">⏳ 图片加载时间较长，请耐心等候</div>
+            <div class="map-loading-hint">⏳ 图片加载时间较长，请耐心等候 <span class="refresh-hint" onclick="refreshCurrentMap()">🔄 刷新</span></div>
             <div class="map-panel" id="mapPanelDudu">
                 <div class="map-container" id="mapContainerDudu">加载中...</div>
                 <div class="zoom-controls" id="zoomControlsDudu" style="display:none;">
@@ -484,17 +487,37 @@
         }
         function getGitHubToken() { return sessionStorage.getItem('github_token') || localStorage.getItem('cached_github_token') || ''; }
 
-        // GitHub 读写
+        // 强力读取 maps.json（优先 API，确保最新）
         async function fetchMapsJSON() {
             const token = getGitHubToken();
+            const apiUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${MAPS_FILE_PATH}`;
+            // 1. 如果有 Token，使用带认证的 API（频率高）
             if (token) {
-                const apiUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${MAPS_FILE_PATH}`;
-                try { const r = await fetch(apiUrl, { headers: { Authorization: `token ${token}` }, cache: 'no-cache' }); if (r.ok) { const d = await r.json(); return JSON.parse(atob(d.content)); } } catch (e) {}
+                try {
+                    const res = await fetch(apiUrl, { headers: { Authorization: `token ${token}` }, cache: 'no-store' });
+                    if (res.ok) {
+                        const data = await res.json();
+                        return JSON.parse(atob(data.content));
+                    }
+                } catch (e) { console.warn('Token API 读取失败，尝试公开 API'); }
             }
-            const rawUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/master/${MAPS_FILE_PATH}?t=${Date.now()}`;
-            try { const r = await fetch(rawUrl, { cache: 'no-cache' }); if (r.ok) return await r.json(); } catch (e) {}
+            // 2. 尝试公开 API（无需认证，频率60次/小时）
+            try {
+                const res = await fetch(apiUrl, { cache: 'no-store' });
+                if (res.ok) {
+                    const data = await res.json();
+                    return JSON.parse(atob(data.content));
+                }
+            } catch (e) { console.warn('公开 API 读取失败，回退到 raw'); }
+            // 3. 最后回退 raw URL（强缓存破坏）
+            const rawUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/master/${MAPS_FILE_PATH}?nocache=${Date.now()}`;
+            try {
+                const res = await fetch(rawUrl, { cache: 'no-store' });
+                if (res.ok) return await res.json();
+            } catch (e) { console.error('raw 读取失败'); }
             return { dudu: '', jianjiao: '' };
         }
+
         async function updateMapsJSON(version, imageUrl) {
             const token = getGitHubToken(); if (!token) { alert('缺少 GitHub Token'); return false; }
             const apiUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${MAPS_FILE_PATH}`;
@@ -559,7 +582,6 @@
             document.removeEventListener('touchmove', onDrag); document.removeEventListener('touchend', stopDrag);
         }
 
-        // 显示图片（修复清晰度核心）
         function showMapImage(version, src) {
             const s = suf(version);
             const container = document.getElementById(`mapContainer${s}`);
@@ -624,6 +646,11 @@
             const maps = await fetchMapsJSON();
             showMapImage(tab, maps[tab]);
         }
+        // 手动刷新当前地图
+        async function refreshCurrentMap() {
+            const maps = await fetchMapsJSON();
+            showMapImage(currentMapTab, maps[currentMapTab]);
+        }
         async function handleUpload(event, version) {
             const file = event.target.files[0]; if (!file) return;
             const s = suf(version); const ut = document.getElementById(`uploadText${s}`); if (ut) ut.style.display='inline';
@@ -638,7 +665,7 @@
             finally { if (ut) ut.style.display='none'; }
         }
 
-        // ========== 票价计算 ==========
+        // 票价计算（完整不变）
         function basePrice(n) {
             if (n <= 0) return 0;
             if (n <= 5) return 2;
