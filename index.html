@@ -380,7 +380,6 @@
         </div>
         <p class="footer-note">本查询系统仅供参考 · 数据版本 2026.08</p>
     </div>
-    <!-- 票价计算说明弹窗（完整内容） -->
     <div class="modal-overlay" id="infoModal">
         <div class="modal-content">
             <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -394,7 +393,6 @@
             </div>
         </div>
     </div>
-    <!-- 线网图模态框 -->
     <div class="modal-overlay" id="mapModal">
         <div class="modal-content modal-content-wide">
             <button class="modal-close" onclick="closeMapModal()">&times;</button>
@@ -443,7 +441,7 @@
         const ADMIN_USERNAME = 'tntdada123';
         const ADMIN_PASSWORD = 'uid650949970';
 
-        // 登录状态
+        // 登录
         function checkLoginStatus() { return sessionStorage.getItem('dudu_admin') === 'true'; }
         function renderNavbar() {
             document.getElementById('navActions').innerHTML = checkLoginStatus() ?
@@ -508,12 +506,15 @@
             } catch (e) { alert('更新出错：' + e.message); return false; }
         }
 
-        // 地图交互状态
+        // 地图状态
         let currentMapTab = 'dudu';
         const mapState = {
             dudu: { scale:1, tx:0, ty:0, dragging:false, startX:0, startY:0, prevX:0, prevY:0, pinchDist:0, pinchScale:1 },
             jianjiao: { scale:1, tx:0, ty:0, dragging:false, startX:0, startY:0, prevX:0, prevY:0, pinchDist:0, pinchScale:1 }
         };
+        // 记录是否已绑定事件
+        const eventsBound = { dudu: false, jianjiao: false };
+
         function suf(v){ return v==='dudu'?'Dudu':'Jianjiao'; }
         function applyTransform(version) {
             const inner = document.getElementById(`mapInner${suf(version)}`);
@@ -523,7 +524,7 @@
         }
         function zoomMap(v, d) { mapState[v].scale = Math.max(0.01, mapState[v].scale + d); applyTransform(v); }
         function resetZoom(v) { mapState[v].scale = 1; mapState[v].tx = 0; mapState[v].ty = 0; applyTransform(v); }
-        function handleWheel(e, v) { e.preventDefault(); zoomMap(v, e.deltaY > 0 ? -0.05 : 0.05); }
+        function handleWheel(e, v) { e.preventDefault(); zoomMap(v, e.deltaY > 0 ? -0.2 : 0.2); }
         function getDist(t) { if (t.length<2) return 0; return Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY); }
         function startDrag(e, v) {
             e.preventDefault();
@@ -553,26 +554,56 @@
             document.removeEventListener('touchmove', onDrag); document.removeEventListener('touchend', stopDrag);
         }
 
+        // 核心修复：保留容器，只更新图片
         function showMapImage(version, src) {
             const s = suf(version);
             const container = document.getElementById(`mapContainer${s}`);
             const zoom = document.getElementById(`zoomControls${s}`);
-            if (src) {
-                container.innerHTML = `<div class="map-image-wrapper" id="mapWrapper${s}"><div class="map-image-inner" id="mapInner${s}" style="transform:translate(-50%,-50%) scale(1);"><img src="${src}" draggable="false"></div></div>`;
-                zoom.style.display = 'flex';
-                const wrapper = document.getElementById(`mapWrapper${s}`);
+            const upload = document.getElementById(`uploadWrapper${s}`);
+
+            // 如果还没有 mapWrapper，就创建它并绑定事件（仅一次）
+            let wrapper = document.getElementById(`mapWrapper${s}`);
+            let inner = document.getElementById(`mapInner${s}`);
+            if (!wrapper || !inner) {
+                // 创建新结构
+                container.innerHTML = `
+                    <div class="map-image-wrapper" id="mapWrapper${s}">
+                        <div class="map-image-inner" id="mapInner${s}" style="transform:translate(-50%,-50%) scale(1);">
+                            <img id="mapImg${s}" draggable="false" style="pointer-events:none; user-select:none;">
+                        </div>
+                    </div>`;
+                wrapper = document.getElementById(`mapWrapper${s}`);
+                inner = document.getElementById(`mapInner${s}`);
+                // 绑定事件
                 wrapper.addEventListener('mousedown', e => startDrag(e, version));
                 wrapper.addEventListener('touchstart', e => startDrag(e, version), { passive: false });
                 wrapper.addEventListener('wheel', e => handleWheel(e, version), { passive: false });
-            } else {
-                container.innerHTML = '<span class="map-placeholder">暂无图片，请管理员上传</span>';
-                zoom.style.display = 'none';
             }
-            document.getElementById(`uploadWrapper${s}`).style.display = checkLoginStatus() ? 'flex' : 'none';
+
+            const img = document.getElementById(`mapImg${s}`);
+            if (src) {
+                img.src = src;
+                img.style.display = 'block';
+                zoom.style.display = 'flex';
+                // 重置变换
+                mapState[version].scale = 1;
+                mapState[version].tx = 0;
+                mapState[version].ty = 0;
+                applyTransform(version);
+                container.style.minHeight = '200px';
+            } else {
+                img.src = '';
+                img.style.display = 'none';
+                zoom.style.display = 'none';
+                container.innerHTML = '<span class="map-placeholder">暂无图片，请管理员上传</span>';
+            }
+            if (upload) upload.style.display = checkLoginStatus() ? 'flex' : 'none';
         }
+
         async function openMapModal() { document.getElementById('mapModal').classList.add('active'); await switchMapTab('dudu'); }
         function closeMapModal() { document.getElementById('mapModal').classList.remove('active'); }
         async function switchMapTab(tab) {
+            currentMapTab = tab;
             document.querySelectorAll('.map-tab').forEach(el => el.classList.remove('active'));
             document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
             document.getElementById('mapPanelDudu').style.display = tab==='dudu'?'block':'none';
@@ -594,7 +625,7 @@
             finally { if (ut) ut.style.display='none'; }
         }
 
-        // ========== 票价计算 ==========
+        // 票价计算
         function basePrice(n) {
             if (n <= 0) return 0;
             if (n <= 5) return 2;
