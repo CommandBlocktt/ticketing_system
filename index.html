@@ -235,7 +235,7 @@
             display: flex;
             gap: 10px;
             justify-content: center;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
         .map-controls button {
             background: var(--primary-light);
@@ -260,6 +260,13 @@
             width: 16px;
             height: 16px;
             fill: currentColor;
+        }
+        .map-gesture-hint {
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            opacity: 0.8;
         }
         .map-image-wrapper {
             width: 100%; max-width: 100%; height: 50vh; max-height: 500px;
@@ -415,7 +422,6 @@
         </div>
         <p class="footer-note">本查询系统仅供参考 · 数据版本 2026.08</p>
     </div>
-    <!-- 票价计算说明弹窗 -->
     <div class="modal-overlay" id="infoModal">
         <div class="modal-content">
             <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -429,7 +435,6 @@
             </div>
         </div>
     </div>
-    <!-- 线网图模态框 -->
     <div class="modal-overlay" id="mapModal">
         <div class="modal-content modal-content-wide">
             <button class="modal-close" onclick="closeMapModal()">&times;</button>
@@ -463,7 +468,6 @@
         </div>
     </div>
     <script>
-        // 配置
         const GITHUB_OWNER = 'CommandBlocktt';
         const GITHUB_REPO = 'ticketing_system';
         const MAPS_FILE_PATH = 'maps.json';
@@ -471,72 +475,19 @@
         const ADMIN_USERNAME = 'tntdada123';
         const ADMIN_PASSWORD = 'uid650949970';
 
-        // ========== 全局函数 ==========
-        window.zoomMap = function(v, d) { mapState[v].scale = Math.max(0.01, mapState[v].scale + d); applyTransform(v); };
-        window.resetZoom = function(v) { mapState[v].scale = 1; mapState[v].tx = 0; mapState[v].ty = 0; applyTransform(v); };
-        window.downloadMapImage = function(version) {
-            const img = document.getElementById(`mapImg${version==='dudu'?'Dudu':'Jianjiao'}`);
-            if (!img || !img.src) { alert('暂无可下载的图片'); return; }
-            const link = document.createElement('a');
-            link.href = img.src;
-            link.download = `线网图_${version}_${Date.now()}.png`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        };
-        window.refreshCurrentMap = async function() {
-            const maps = await fetchMapsJSON();
-            showMapImage(currentMapTab, maps[currentMapTab]);
-        };
-        window.switchMapTab = async function(tab) {
-            currentMapTab = tab;
-            document.querySelectorAll('.map-tab').forEach(el => el.classList.remove('active'));
-            document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
-            document.getElementById('mapPanelDudu').style.display = tab==='dudu'?'block':'none';
-            document.getElementById('mapPanelJianjiao').style.display = tab==='jianjiao'?'block':'none';
-            const maps = await fetchMapsJSON();
-            showMapImage(tab, maps[tab]);
-        };
-        window.handleUpload = async function(event, version) {
-            const file = event.target.files[0]; if (!file) return;
-            const s = version==='dudu'?'Dudu':'Jianjiao'; const ut = document.getElementById(`uploadText${s}`); if (ut) ut.style.display='inline';
-            try {
-                const fd = new FormData(); fd.append('image', file);
-                const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {method:'POST', body:fd});
-                const data = await res.json(); if (!data.success) throw new Error('上传失败');
-                const imageUrl = data.data.url;
-                const ok = await updateMapsJSON(version, imageUrl);
-                if (ok) { showMapImage(version, imageUrl); alert('✅ 上传成功！'); }
-            } catch(e) { alert('操作失败：'+e.message); }
-            finally { if (ut) ut.style.display='none'; }
-        };
-        window.closeMapModal = function() { document.getElementById('mapModal').classList.remove('active'); };
-        window.closeModal = function() { document.getElementById('infoModal').classList.remove('active'); };
-        window.closeLoginModal = function() { document.getElementById('loginModal').classList.remove('active'); };
-        window.openModal = function() { document.getElementById('infoModal').classList.add('active'); };
-        window.openLoginModal = function() {
-            document.getElementById('loginModal').classList.add('active');
-            const cached = localStorage.getItem('cached_github_token');
-            if (cached) { document.getElementById('githubToken').value = cached; document.getElementById('rememberToken').checked = true; }
-        };
-        window.logout = function() {
-            sessionStorage.removeItem('dudu_admin'); sessionStorage.removeItem('github_token');
-            renderNavbar();
-        };
-        window.calculateStandard = calculateStandard;
-        window.clearStandard = clearStandard;
-        window.quickPreset = quickPreset;
-        window.calculateSupplement = calculateSupplement;
-        window.clearSupplement = clearSupplement;
-        window.openMapModal = async function() { document.getElementById('mapModal').classList.add('active'); await switchMapTab('dudu'); };
-
-        // 登录状态
+        // 登录
         function checkLoginStatus() { return sessionStorage.getItem('dudu_admin') === 'true'; }
         function renderNavbar() {
             document.getElementById('navActions').innerHTML = checkLoginStatus() ?
                 `<div class="nav-user-info"><span class="user-icon">👤</span><span>管理员</span></div><button class="btn-logout" onclick="logout()">退出</button>` :
                 `<button class="btn-login" onclick="openLoginModal()">🔐 管理员登录</button>`;
         }
+        window.openLoginModal = function() {
+            document.getElementById('loginModal').classList.add('active');
+            const cached = localStorage.getItem('cached_github_token');
+            if (cached) { document.getElementById('githubToken').value = cached; document.getElementById('rememberToken').checked = true; }
+        };
+        window.closeLoginModal = function() { document.getElementById('loginModal').classList.remove('active'); };
         window.handleLogin = function(e) {
             e.preventDefault();
             const u = document.getElementById('loginUsername').value.trim();
@@ -552,6 +503,10 @@
                 else localStorage.removeItem('cached_github_token');
                 closeLoginModal(); renderNavbar();
             } else { document.getElementById('loginError').style.display = 'block'; }
+        };
+        window.logout = function() {
+            sessionStorage.removeItem('dudu_admin'); sessionStorage.removeItem('github_token');
+            renderNavbar();
         };
         function getGitHubToken() { return sessionStorage.getItem('github_token') || localStorage.getItem('cached_github_token') || ''; }
 
@@ -586,11 +541,10 @@
             } catch (e) { alert('更新出错：' + e.message); return false; }
         }
 
-        // 地图交互
         let currentMapTab = 'dudu';
         const mapState = {
-            dudu: { scale:1, tx:0, ty:0, dragging:false, startX:0, startY:0, prevX:0, prevY:0, pinchDist:0, pinchScale:1 },
-            jianjiao: { scale:1, tx:0, ty:0, dragging:false, startX:0, startY:0, prevX:0, prevY:0, pinchDist:0, pinchScale:1 }
+            dudu: { scale:1, tx:0, ty:0, dragging:false, startX:0, startY:0, prevX:0, prevY:0, pinchDist:0, pinchScale:1, initScale:1 },
+            jianjiao: { scale:1, tx:0, ty:0, dragging:false, startX:0, startY:0, prevX:0, prevY:0, pinchDist:0, pinchScale:1, initScale:1 }
         };
         function suf(v){ return v==='dudu'?'Dudu':'Jianjiao'; }
         function applyTransform(version) {
@@ -599,6 +553,8 @@
             const s = mapState[version];
             inner.style.transform = `translate(calc(-50% + ${s.tx}px), calc(-50% + ${s.ty}px)) scale(${s.scale})`;
         }
+        function zoomMap(v, d) { mapState[v].scale = Math.max(0.01, mapState[v].scale + d); applyTransform(v); }
+        function resetZoom(v) { mapState[v].scale = mapState[v].initScale; mapState[v].tx = 0; mapState[v].ty = 0; applyTransform(v); }
         function handleWheel(e, v) { e.preventDefault(); zoomMap(v, e.deltaY > 0 ? -0.2 : 0.2); }
         function getDist(t) { if (t.length<2) return 0; return Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY); }
         function startDrag(e, v) {
@@ -629,17 +585,58 @@
             document.removeEventListener('touchmove', onDrag); document.removeEventListener('touchend', stopDrag);
         }
 
-        // 显示地图（按钮在图片框上方）
+        window.downloadMapImage = function(version) {
+            const img = document.getElementById(`mapImg${suf(version)}`);
+            if (!img || !img.src) { alert('暂无可下载的图片'); return; }
+            const link = document.createElement('a');
+            link.href = img.src;
+            link.download = `线网图_${version}_${Date.now()}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        window.refreshCurrentMap = async function() { const maps = await fetchMapsJSON(); showMapImage(currentMapTab, maps[currentMapTab]); };
+        window.switchMapTab = async function(tab) {
+            currentMapTab = tab;
+            document.querySelectorAll('.map-tab').forEach(el => el.classList.remove('active'));
+            document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+            document.getElementById('mapPanelDudu').style.display = tab==='dudu'?'block':'none';
+            document.getElementById('mapPanelJianjiao').style.display = tab==='jianjiao'?'block':'none';
+            const maps = await fetchMapsJSON();
+            showMapImage(tab, maps[tab]);
+        };
+        window.handleUpload = async function(event, version) {
+            const file = event.target.files[0]; if (!file) return;
+            const s = suf(version); const ut = document.getElementById(`uploadText${s}`); if (ut) ut.style.display='inline';
+            try {
+                const fd = new FormData(); fd.append('image', file);
+                const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {method:'POST', body:fd});
+                const data = await res.json(); if (!data.success) throw new Error('上传失败');
+                const imageUrl = data.data.url;
+                const ok = await updateMapsJSON(version, imageUrl);
+                if (ok) { showMapImage(version, imageUrl); alert('✅ 上传成功！'); }
+            } catch(e) { alert('操作失败：'+e.message); }
+            finally { if (ut) ut.style.display='none'; }
+        };
+        window.closeMapModal = function() { document.getElementById('mapModal').classList.remove('active'); };
+        window.closeModal = function() { document.getElementById('infoModal').classList.remove('active'); };
+        window.openModal = function() { document.getElementById('infoModal').classList.add('active'); };
+        window.openMapModal = async function() { document.getElementById('mapModal').classList.add('active'); await switchMapTab('dudu'); };
+        window.calculateStandard = calculateStandard;
+        window.clearStandard = clearStandard;
+        window.quickPreset = quickPreset;
+        window.calculateSupplement = calculateSupplement;
+        window.clearSupplement = clearSupplement;
+        window.zoomMap = zoomMap;
+        window.resetZoom = resetZoom;
+
         function showMapImage(version, src) {
             const s = suf(version);
             const container = document.getElementById(`mapContainer${s}`);
             const upload = document.getElementById(`uploadWrapper${s}`);
-
-            // 保留原有结构，只更新内容
             container.innerHTML = '';
-
             if (src) {
-                // 有图片时，创建控制栏 + 图片容器
                 const controlsDiv = document.createElement('div');
                 controlsDiv.className = 'map-controls';
                 controlsDiv.id = `mapControls${s}`;
@@ -657,61 +654,48 @@
                 `;
                 container.appendChild(controlsDiv);
 
-                const wrapper = document.createElement('div');
-                wrapper.className = 'map-image-wrapper';
-                wrapper.id = `mapWrapper${s}`;
-                const inner = document.createElement('div');
-                inner.className = 'map-image-inner';
-                inner.id = `mapInner${s}`;
+                // 添加手势提示
+                const hintDiv = document.createElement('div');
+                hintDiv.className = 'map-gesture-hint';
+                hintDiv.textContent = '💡 可使用鼠标滚轮或双指进行放大/缩小，拖拽移动';
+                container.appendChild(hintDiv);
+
+                const wrapper = document.createElement('div'); wrapper.className = 'map-image-wrapper'; wrapper.id = `mapWrapper${s}`;
+                const inner = document.createElement('div'); inner.className = 'map-image-inner'; inner.id = `mapInner${s}`;
                 inner.style.cssText = 'position:absolute; top:50%; left:50%; transform-origin: center; cursor:grab; user-select:none; -webkit-user-drag:none; will-change:transform;';
-                const img = document.createElement('img');
-                img.id = `mapImg${s}`;
-                img.draggable = false;
+                const img = document.createElement('img'); img.id = `mapImg${s}`; img.draggable = false;
                 img.style.cssText = 'pointer-events:none; user-select:none;';
                 img.src = src;
                 inner.appendChild(img);
                 wrapper.appendChild(inner);
                 container.appendChild(wrapper);
-
-                // 绑定事件
                 wrapper.addEventListener('mousedown', e => startDrag(e, version));
                 wrapper.addEventListener('touchstart', e => startDrag(e, version), { passive: false });
                 wrapper.addEventListener('wheel', e => handleWheel(e, version), { passive: false });
-
-                // 绑定控制按钮事件
                 document.getElementById(`btnZoomIn${s}`).addEventListener('click', (e) => { e.stopPropagation(); zoomMap(version, 0.2); });
                 document.getElementById(`btnZoomOut${s}`).addEventListener('click', (e) => { e.stopPropagation(); zoomMap(version, -0.2); });
                 document.getElementById(`btnReset${s}`).addEventListener('click', (e) => { e.stopPropagation(); resetZoom(version); });
                 document.getElementById(`btnDownload${s}`).addEventListener('click', (e) => { e.stopPropagation(); downloadMapImage(version); });
-
-                // 图片加载后计算初始缩放
                 img.onload = () => {
-                    const natW = img.naturalWidth;
-                    const natH = img.naturalHeight;
+                    const natW = img.naturalWidth, natH = img.naturalHeight;
                     if (natW && natH) {
-                        inner.style.width = natW + 'px';
-                        inner.style.height = natH + 'px';
-                        const ww = wrapper.clientWidth;
-                        const wh = wrapper.clientHeight;
-                        const scaleX = ww / natW;
-                        const scaleY = wh / natH;
+                        inner.style.width = natW + 'px'; inner.style.height = natH + 'px';
+                        const ww = wrapper.clientWidth, wh = wrapper.clientHeight;
+                        const scaleX = ww / natW, scaleY = wh / natH;
                         const initScale = Math.min(scaleX, scaleY, 1);
+                        mapState[version].initScale = initScale;
                         mapState[version].scale = initScale;
-                        mapState[version].tx = 0;
-                        mapState[version].ty = 0;
+                        mapState[version].tx = 0; mapState[version].ty = 0;
                         applyTransform(version);
                     }
                 };
-
                 if (upload) upload.style.display = checkLoginStatus() ? 'flex' : 'none';
             } else {
-                // 无图片时显示占位文字
                 container.innerHTML = '<span class="map-placeholder">暂无图片，请管理员上传</span>';
                 if (upload) upload.style.display = checkLoginStatus() ? 'flex' : 'none';
             }
         }
 
-        // 票价计算（完整保留）
         function basePrice(n) { if (n<=0) return 0; if (n<=5) return 2; if (n<=12) return 2+(n-5)*0.8; if (n<=24) return 7.6+(n-12)*0.7; if (n<=48) return 16.0+(n-24)*0.6; if (n<=100) return 30.4+(n-48)*0.5; return 56.4+(n-100)*0.4; }
         function finalPrice(n, sea) { if (n<=0) return 0; return Math.min(basePrice(n)+(sea?5.5:0), 50); }
         function originalFullPrice(n, sea) { if (n<=0) return 0; return basePrice(n)+(sea?5.5:0); }
@@ -751,7 +735,6 @@
             det.innerHTML=detail;
         }
         function clearSupplement() { document.getElementById('paidAmount').value=''; document.getElementById('actualStations').value=''; document.getElementById('hasSeaSupplement').checked=false; document.getElementById('isOvertime').checked=false; document.getElementById('supplementResult').innerHTML=''; document.getElementById('supplementDetail').innerHTML=''; document.getElementById('overtimeTip').style.display='none'; }
-
         document.addEventListener('click', e => {
             if (e.target === document.getElementById('infoModal')) closeModal();
             if (e.target === document.getElementById('loginModal')) closeLoginModal();
