@@ -243,9 +243,15 @@
             will-change: transform;
         }
         .map-image-inner:active { cursor: grabbing; }
+        /* 修复清晰度：移除尺寸限制，使用原始分辨率 */
         .map-image-inner img {
-            display: block; max-width: 100%; height: auto;
-            -webkit-user-drag: none; user-select: none; pointer-events: none;
+            display: block;
+            width: auto;
+            height: auto;
+            max-width: none;
+            -webkit-user-drag: none;
+            user-select: none;
+            pointer-events: none;
         }
         .zoom-controls {
             display: flex; gap: 8px; margin-top: 12px;
@@ -380,6 +386,7 @@
         </div>
         <p class="footer-note">本查询系统仅供参考 · 数据版本 2026.08</p>
     </div>
+    <!-- 票价计算说明弹窗 -->
     <div class="modal-overlay" id="infoModal">
         <div class="modal-content">
             <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -393,6 +400,7 @@
             </div>
         </div>
     </div>
+    <!-- 线网图模态框 -->
     <div class="modal-overlay" id="mapModal">
         <div class="modal-content modal-content-wide">
             <button class="modal-close" onclick="closeMapModal()">&times;</button>
@@ -506,15 +514,12 @@
             } catch (e) { alert('更新出错：' + e.message); return false; }
         }
 
-        // 地图状态
+        // 地图交互状态
         let currentMapTab = 'dudu';
         const mapState = {
             dudu: { scale:1, tx:0, ty:0, dragging:false, startX:0, startY:0, prevX:0, prevY:0, pinchDist:0, pinchScale:1 },
             jianjiao: { scale:1, tx:0, ty:0, dragging:false, startX:0, startY:0, prevX:0, prevY:0, pinchDist:0, pinchScale:1 }
         };
-        // 记录是否已绑定事件
-        const eventsBound = { dudu: false, jianjiao: false };
-
         function suf(v){ return v==='dudu'?'Dudu':'Jianjiao'; }
         function applyTransform(version) {
             const inner = document.getElementById(`mapInner${suf(version)}`);
@@ -554,27 +559,24 @@
             document.removeEventListener('touchmove', onDrag); document.removeEventListener('touchend', stopDrag);
         }
 
-        // 核心修复：保留容器，只更新图片
+        // 显示图片（修复清晰度核心）
         function showMapImage(version, src) {
             const s = suf(version);
             const container = document.getElementById(`mapContainer${s}`);
             const zoom = document.getElementById(`zoomControls${s}`);
             const upload = document.getElementById(`uploadWrapper${s}`);
 
-            // 如果还没有 mapWrapper，就创建它并绑定事件（仅一次）
             let wrapper = document.getElementById(`mapWrapper${s}`);
             let inner = document.getElementById(`mapInner${s}`);
             if (!wrapper || !inner) {
-                // 创建新结构
                 container.innerHTML = `
                     <div class="map-image-wrapper" id="mapWrapper${s}">
-                        <div class="map-image-inner" id="mapInner${s}" style="transform:translate(-50%,-50%) scale(1);">
+                        <div class="map-image-inner" id="mapInner${s}" style="position:absolute; top:50%; left:50%; transform-origin: center; cursor:grab; user-select:none; -webkit-user-drag:none; will-change:transform;">
                             <img id="mapImg${s}" draggable="false" style="pointer-events:none; user-select:none;">
                         </div>
                     </div>`;
                 wrapper = document.getElementById(`mapWrapper${s}`);
                 inner = document.getElementById(`mapInner${s}`);
-                // 绑定事件
                 wrapper.addEventListener('mousedown', e => startDrag(e, version));
                 wrapper.addEventListener('touchstart', e => startDrag(e, version), { passive: false });
                 wrapper.addEventListener('wheel', e => handleWheel(e, version), { passive: false });
@@ -583,17 +585,28 @@
             const img = document.getElementById(`mapImg${s}`);
             if (src) {
                 img.src = src;
-                img.style.display = 'block';
-                zoom.style.display = 'flex';
-                // 重置变换
-                mapState[version].scale = 1;
-                mapState[version].tx = 0;
-                mapState[version].ty = 0;
-                applyTransform(version);
-                container.style.minHeight = '200px';
+                img.onload = () => {
+                    const natW = img.naturalWidth;
+                    const natH = img.naturalHeight;
+                    if (natW && natH) {
+                        inner.style.width = natW + 'px';
+                        inner.style.height = natH + 'px';
+                        const ww = wrapper.clientWidth;
+                        const wh = wrapper.clientHeight;
+                        const scaleX = ww / natW;
+                        const scaleY = wh / natH;
+                        const initScale = Math.min(scaleX, scaleY, 1);
+                        mapState[version].scale = initScale;
+                        mapState[version].tx = 0;
+                        mapState[version].ty = 0;
+                        applyTransform(version);
+                    }
+                    zoom.style.display = 'flex';
+                    container.style.minHeight = '200px';
+                };
             } else {
                 img.src = '';
-                img.style.display = 'none';
+                img.onload = null;
                 zoom.style.display = 'none';
                 container.innerHTML = '<span class="map-placeholder">暂无图片，请管理员上传</span>';
             }
@@ -625,7 +638,7 @@
             finally { if (ut) ut.style.display='none'; }
         }
 
-        // 票价计算
+        // ========== 票价计算 ==========
         function basePrice(n) {
             if (n <= 0) return 0;
             if (n <= 5) return 2;
