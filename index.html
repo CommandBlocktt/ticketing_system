@@ -439,12 +439,17 @@
             .map-controls button { padding: 4px 10px; font-size: 0.75rem; }
             .directory-btn { padding: 6px 12px; font-size: 0.8rem; }
             .nav-right { gap: 6px; }
+            /* 窄屏隐藏导航栏品牌文字，仅保留 logo */
+            .navbar .nav-brand span { display: none; }
         }
     </style>
 </head>
 <body id="top">
     <nav class="navbar">
-        <a class="nav-brand" href="#top"><span class="nav-logo">🚇</span><span>嘟嘟市轨道交通|票价查询</span></a>
+        <a class="nav-brand" href="#top">
+            <span class="nav-logo">🚇</span>
+            <span>嘟嘟市轨道交通|票价查询</span>
+        </a>
         <div class="nav-right">
             <div class="nav-directory">
                 <button class="directory-btn" onclick="toggleDirectory()">📂 其他功能</button>
