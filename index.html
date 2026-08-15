@@ -46,7 +46,12 @@
             width: 34px; height: 34px; background: var(--primary); border-radius: 50%;
             display: flex; align-items: center; justify-content: center; font-size: 18px; color: white;
         }
-        .navbar .nav-actions { display: flex; align-items: center; gap: 12px; }
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .nav-actions { display: flex; align-items: center; gap: 12px; }
         .nav-user-info { font-size: 0.9rem; font-weight: 500; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
         .nav-user-info .user-icon { font-size: 1.2rem; }
         .btn {
@@ -353,6 +358,70 @@
             background: var(--primary);
             color: #fff;
         }
+
+        /* ==================== 其他功能按钮组件样式（蓝色主题适配） ==================== */
+        .nav-directory {
+            position: relative;
+            display: inline-block;
+        }
+        .directory-btn {
+            background: var(--primary-light);
+            border: 1.5px solid var(--primary);
+            color: var(--primary-dark);
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+        .directory-btn:hover {
+            background: var(--primary);
+            color: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(26, 111, 181, 0.3);
+        }
+        .directory-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+            border: 1px solid var(--border);
+            min-width: 200px;
+            padding: 8px 0;
+            display: none;
+            z-index: 200;
+        }
+        .directory-dropdown.active {
+            display: block;
+            animation: dropdownFadeIn 0.2s ease;
+        }
+        @keyframes dropdownFadeIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .directory-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text);
+            text-decoration: none;
+            transition: background 0.2s, color 0.2s;
+        }
+        .directory-item:hover {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+        }
+
         @media (max-width:600px) {
             .container { padding:12px 8px 32px; }
             .card { padding:16px 14px; border-radius:12px; }
@@ -368,13 +437,24 @@
             .navbar { padding: 0 12px; }
             .navbar .nav-brand { font-size: 0.95rem; }
             .map-controls button { padding: 4px 10px; font-size: 0.75rem; }
+            .directory-btn { padding: 6px 12px; font-size: 0.8rem; }
+            .nav-right { gap: 6px; }
         }
     </style>
 </head>
-<body>
+<body id="top">
     <nav class="navbar">
-        <a class="nav-brand" href="#"><span class="nav-logo">🚇</span><span>嘟嘟市轨道交通|票价查询</span></a>
-        <div class="nav-actions" id="navActions"></div>
+        <a class="nav-brand" href="#top"><span class="nav-logo">🚇</span><span>嘟嘟市轨道交通|票价查询</span></a>
+        <div class="nav-right">
+            <div class="nav-directory">
+                <button class="directory-btn" onclick="toggleDirectory()">📂 其他功能</button>
+                <div class="directory-dropdown" id="directoryDropdown">
+                    <a href="#top" class="directory-item" onclick="closeDirectory()">🚇 票价查询</a>
+                    <a href="https://commandblocktt.github.io/picture_viewer/" class="directory-item" target="_blank" onclick="closeDirectory()">🗺️ 线网图查看器</a>
+                </div>
+            </div>
+            <div class="nav-actions" id="navActions"></div>
+        </div>
     </nav>
 
     <!-- 管理员登录模态框 -->
@@ -688,6 +768,30 @@
         window.zoomMap = zoomMap;
         window.resetZoom = resetZoom;
 
+        // 目录组件函数
+        window.toggleDirectory = function() {
+            const dropdown = document.getElementById('directoryDropdown');
+            dropdown.classList.toggle('active');
+        };
+        window.closeDirectory = function() {
+            const dropdown = document.getElementById('directoryDropdown');
+            dropdown.classList.remove('active');
+        };
+
+        // 点击页面其他区域关闭目录
+        document.addEventListener('click', function(e) {
+            const directory = document.querySelector('.nav-directory');
+            if (directory && !directory.contains(e.target)) {
+                closeDirectory();
+            }
+        });
+        // Esc 键关闭目录
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeDirectory();
+            }
+        });
+
         function showMapImage(version, src) {
             const s = suf(version);
             const container = document.getElementById(`mapContainer${s}`);
@@ -802,7 +906,7 @@
             if (e.target === document.getElementById('loginModal')) closeLoginModal();
             if (e.target === document.getElementById('mapModal')) closeMapModal();
         });
-        document.addEventListener('keydown', e => { if (e.key==='Escape') { closeModal(); closeGuide(); closeLoginModal(); closeMapModal(); } });
+        document.addEventListener('keydown', e => { if (e.key==='Escape') { closeModal(); closeGuide(); closeLoginModal(); closeMapModal(); closeDirectory(); } });
         document.addEventListener('DOMContentLoaded', () => {
             renderNavbar();
             document.getElementById('stations').addEventListener('input', ()=>setTimeout(calculateStandard,400));
